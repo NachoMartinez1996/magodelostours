@@ -303,7 +303,7 @@ async function handleRegister() {
     }
 
     const name = getValue("auth-name");
-    const email = getValue("auth-email");
+    const email = normalizeEmail(getValue("auth-email"));
     const password = getValue("auth-password");
 
     if (!name || !email || !password) {
@@ -334,7 +334,7 @@ async function handleLogin() {
     }
 
     try {
-        await state.authFns.signInWithEmailAndPassword(state.auth, getValue("auth-email"), getValue("auth-password"));
+        await state.authFns.signInWithEmailAndPassword(state.auth, normalizeEmail(getValue("auth-email")), getValue("auth-password"));
         feedback.textContent = "Sesión iniciada.";
     } catch (error) {
         feedback.textContent = getFirebaseMessage(error);
@@ -410,7 +410,7 @@ function renderAgenda(items) {
 
     list.innerHTML = items.map(item => `
         <article class="agenda-card">
-            <strong>${escapeHtml(item.tour || "Salida guiada")}</strong>
+            <h3>${escapeHtml(item.tour || "Salida guiada")}</h3>
             <span>${escapeHtml(formatAgendaDate(item.date))} · ${escapeHtml(item.time || "Horario a confirmar")}</span>
             <span>${escapeHtml(item.duration || "Duración a completar")} · ${escapeHtml(item.price || "Precio según duración")}</span>
             <span>${escapeHtml(item.meeting || "Punto de encuentro a confirmar")}</span>
@@ -431,8 +431,8 @@ function renderReviews(items) {
     list.innerHTML = items.map(item => `
         <article class="review-card">
             <strong>${"★".repeat(Number(item.stars || 5))}${"☆".repeat(5 - Number(item.stars || 5))}</strong>
+            <h3>${escapeHtml(item.name || "Visitante")}</h3>
             <p>${escapeHtml(item.text || "")}</p>
-            <span>${escapeHtml(item.name || "Visitante")}</span>
         </article>
     `).join("");
 }
@@ -515,6 +515,10 @@ function getValue(id) {
     return document.getElementById(id)?.value.trim() || "";
 }
 
+function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
 function setText(id, text) {
     const element = document.getElementById(id);
     if (element) element.textContent = text;
@@ -537,7 +541,11 @@ function escapeHtml(value) {
 function getFirebaseMessage(error) {
     const code = error?.code || "";
     if (code.includes("auth/email-already-in-use")) return "Ese email ya está registrado.";
-    if (code.includes("auth/invalid-credential")) return "Email o contraseña incorrectos.";
+    if (code.includes("auth/invalid-credential") || code.includes("auth/wrong-password")) return "Email o contraseña incorrectos.";
+    if (code.includes("auth/user-not-found")) return "No existe una cuenta con ese email.";
+    if (code.includes("auth/invalid-email")) return "El email no tiene un formato válido.";
+    if (code.includes("auth/too-many-requests")) return "Firebase bloqueó temporalmente el acceso por demasiados intentos. Probá más tarde.";
+    if (code.includes("auth/network-request-failed")) return "No hay conexión con Firebase.";
     if (code.includes("auth/weak-password")) return "La contraseña debe tener al menos 6 caracteres.";
     if (code.includes("auth/operation-not-allowed")) return "Activá Email/Password en Firebase Authentication.";
     return "No se pudo completar la operación.";

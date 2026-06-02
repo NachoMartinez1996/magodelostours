@@ -55,11 +55,19 @@ function bindAdminEvents() {
 
     document.getElementById("admin-login-form")?.addEventListener("submit", async event => {
         event.preventDefault();
+        const email = normalizeEmail(getValue("admin-email"));
+        const password = getValue("admin-password");
+
+        if (!email || !password) {
+            setText("admin-login-feedback", "Completá email y contraseña.");
+            return;
+        }
+
         try {
             await state.authFns.signInWithEmailAndPassword(
                 state.auth,
-                getValue("admin-email"),
-                getValue("admin-password")
+                email,
+                password
             );
         } catch (error) {
             setText("admin-login-feedback", getFirebaseMessage(error));
@@ -67,7 +75,7 @@ function bindAdminEvents() {
     });
 
     document.getElementById("admin-reset-password")?.addEventListener("click", async () => {
-        const email = getValue("admin-email") || ADMIN_EMAIL;
+        const email = normalizeEmail(getValue("admin-email")) || ADMIN_EMAIL;
 
         try {
             await state.authFns.sendPasswordResetEmail(state.auth, email);
@@ -329,6 +337,10 @@ function getValue(id) {
     return document.getElementById(id)?.value.trim() || "";
 }
 
+function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
 function setText(id, value) {
     const element = document.getElementById(id);
     if (element) element.textContent = value;
@@ -345,7 +357,12 @@ function escapeHtml(value) {
 
 function getFirebaseMessage(error) {
     const code = error?.code || "";
-    if (code.includes("auth/invalid-credential")) return "Email o contraseña incorrectos.";
+    if (code.includes("auth/invalid-credential") || code.includes("auth/wrong-password")) return "La cuenta admin existe, pero esa contraseña no coincide. Usá Crear o recuperar contraseña.";
+    if (code.includes("auth/user-not-found")) return "No existe un usuario de Firebase Auth con ese email.";
+    if (code.includes("auth/user-disabled")) return "Ese usuario está deshabilitado en Firebase Auth.";
+    if (code.includes("auth/invalid-email")) return "El email no tiene un formato válido.";
+    if (code.includes("auth/too-many-requests")) return "Firebase bloqueó temporalmente el acceso por demasiados intentos. Probá más tarde o recuperá la contraseña.";
+    if (code.includes("auth/network-request-failed")) return "No hay conexión con Firebase.";
     if (code.includes("auth/operation-not-allowed")) return "Activá Email/Password en Firebase Authentication.";
     return "No se pudo ingresar.";
 }
