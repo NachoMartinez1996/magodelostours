@@ -1948,6 +1948,46 @@ body.tour-site {
     line-height: 1.45;
 }
 
+.booking-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(12, 32, 48, 0.56);
+    backdrop-filter: blur(6px);
+}
+
+.booking-modal-backdrop[hidden],
+.booking-modal-form[hidden] {
+    display: none;
+}
+
+.booking-modal-form.is-open {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    z-index: 70;
+    width: min(640px, calc(100% - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    transform: translate(-50%, -50%);
+}
+
+.booking-modal-open {
+    overflow: hidden;
+}
+
+.modal-close {
+    justify-self: end;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(20, 50, 74, 0.14);
+    border-radius: 999px;
+    background: var(--bg-soft);
+    color: var(--ink);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
 .site-footer {
     display: flex;
     align-items: center;
@@ -1991,10 +2031,37 @@ body.tour-site {
     line-height: 1;
 }
 
+.admin-site .site-header {
+    position: relative;
+    top: auto;
+}
+
+.admin-site main {
+    padding-top: 14px;
+}
+
 .admin-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: 18px;
+    align-items: start;
+}
+
+.admin-grid > *,
+.admin-section,
+.admin-card {
+    min-width: 0;
+}
+
+.admin-site .booking-form h3 {
+    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+    overflow-wrap: anywhere;
+}
+
+.admin-hint,
+.admin-card span,
+.admin-card em {
+    overflow-wrap: anywhere;
 }
 
 .admin-section {

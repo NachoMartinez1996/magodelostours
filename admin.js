@@ -117,7 +117,7 @@ function initPasswordToggles() {
         toggle.addEventListener("change", () => {
             input.type = toggle.checked ? "text" : "password";
         });
-    }, error => handleAdminSnapshotError("admin-registrations-list", "No se pudieron leer las inscripciones.", error));
+    });
 }
 
 async function handleAgendaSubmit(event) {
@@ -366,6 +366,7 @@ function subscribeRegistrations() {
                 <strong>${escapeHtml(data.name || "")} · ${escapeHtml(data.tour || "")}</strong>
                 <span>${escapeHtml(data.email || "")} · ${escapeHtml(data.phone || "")}</span>
                 <span>${escapeHtml(data.date || "")} · ${escapeHtml(data.people || "")} · ${escapeHtml(data.duration || "")}</span>
+                <span>${escapeHtml(data.priceLabel || "Precio a confirmar")} · ${escapeHtml(data.source || "recorrido")}</span>
                 <em>${escapeHtml(data.status || "pending")}</em>
             `);
             card.appendChild(actionButton("Confirmar", () => runAdminAction(

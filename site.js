@@ -14,6 +14,9 @@ const state = {
     firebaseReady: false
 };
 
+// Map of tour title -> { description, duration }
+let toursMap = {};
+
 initViews();
 initPwaInstallPrompt();
 registerServiceWorker();
@@ -49,6 +52,15 @@ function initViews() {
             showView(viewName);
         });
     });
+
+    // Ensure the Juegos link always navigates to juegos.html (avoid SPA interception)
+    const juegosLink = document.getElementById("nav-juegos");
+    if (juegosLink) {
+        juegosLink.addEventListener("click", event => {
+            event.preventDefault();
+            window.location.href = juegosLink.getAttribute("href");
+        });
+    }
 
     window.addEventListener("popstate", () => {
         showView(getHashView());
@@ -106,6 +118,8 @@ function registerServiceWorker() {
 
 function initWhatsappButtons() {
     document.querySelectorAll("[data-whatsapp-tour]").forEach(button => {
+        // Skip buttons that are inside a tour card (those open the booking form instead)
+        if (button.closest('.tour-card')) return;
         button.addEventListener("click", () => {
             const tour = button.dataset.whatsappTour;
             openWhatsapp(`Hola Ignacio, quiero consultar por el recorrido "${tour}".`);
@@ -132,7 +146,7 @@ function initForms() {
 
     // Price display/update handlers for the booking form
     const durationSelect = document.getElementById("booking-duration");
-    const peopleSelect = document.getElementById("booking-people");
+    const peopleInput = document.getElementById("booking-people");
 
     if (durationSelect) {
         durationSelect.addEventListener("change", () => {
@@ -144,12 +158,166 @@ function initForms() {
         });
     }
 
-    if (peopleSelect) {
-        peopleSelect.addEventListener("change", () => {
+    if (peopleInput) {
+        peopleInput.addEventListener("input", () => {
+            const price = document.getElementById("booking-price")?.value || "";
+            updateBookingPriceUI(price || "");
+        });
+        peopleInput.addEventListener("change", () => {
             const price = document.getElementById("booking-price")?.value || "";
             updateBookingPriceUI(price || "");
         });
     }
+
+    document.getElementById("booking-modal-close")?.addEventListener("click", closeBookingModal);
+    document.getElementById("booking-modal-backdrop")?.addEventListener("click", closeBookingModal);
+    window.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeBookingModal();
+    });
+
+    // Build map of tours (title -> description, duration) from the Recorridos cards
+    buildToursMap();
+
+    // When user selects a tour from the dropdown, reveal the rest of the form
+    const bookingTourSelect = document.getElementById("booking-tour");
+    if (bookingTourSelect) {
+        bookingTourSelect.addEventListener("change", () => {
+            handleTourSelection(bookingTourSelect.value);
+        });
+    }
+
+    // Make 'Reservar' buttons inside tour cards open the booking flow (instead of direct WhatsApp)
+    document.querySelectorAll('.tour-card [data-whatsapp-tour]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tour = btn.dataset.whatsappTour;
+            showBookingForTour(tour);
+        });
+    });
+}
+
+function buildToursMap() {
+    toursMap = {};
+    document.querySelectorAll('.tour-card').forEach(card => {
+        const body = card.querySelector('.tour-card__body') || card;
+        const titleEl = body.querySelector('h3');
+        const descEl = body.querySelector('p');
+        const spans = Array.from(body.querySelectorAll('span'));
+        const title = titleEl?.textContent?.trim() || null;
+        if (!title) return;
+
+        // Find the span that contains 'Tiempo estimado'
+        const timeSpan = spans.find(s => /tiempo estimado/i.test(s.textContent || ''));
+        const durationText = timeSpan ? timeSpan.textContent.replace(/Tiempo estimado:\s*/i, '').trim() : '';
+
+        toursMap[title] = {
+            description: descEl?.textContent?.trim() || '',
+            duration: durationText
+        };
+    });
+}
+
+function normalizeDurationString(text) {
+    if (!text) return '';
+    const s = String(text).toLowerCase();
+    if (s.includes('tres') || s.includes('3 horas') || s.includes('3 hora')) return '3 horas';
+    if (s.includes('hora y media') || s.includes('1 hora y media') || s.includes('una hora y media')) return '2 horas';
+    if (s.includes('dos') || s.includes('2 horas') || s.includes('2 hora')) return '2 horas';
+    if (s.includes('hora')) return '1 hora';
+    return text;
+}
+
+function handleTourSelection(tour) {
+    const descEl = document.getElementById('booking-tour-description');
+    const bookingFields = document.getElementById('booking-fields');
+    const durationSelect = document.getElementById('booking-duration');
+
+    if (!tour) {
+        if (descEl) descEl.hidden = true;
+        if (bookingFields) bookingFields.hidden = true;
+        return;
+    }
+
+    const info = toursMap[tour] || {};
+    if (descEl) {
+        if (info.description) {
+            descEl.textContent = info.description;
+            descEl.hidden = false;
+        } else {
+            descEl.hidden = true;
+        }
+    }
+
+    if (bookingFields) bookingFields.hidden = false;
+
+    // Auto-select duration based on tour estimate
+    const normalized = normalizeDurationString(info.duration || '');
+    if (normalized && durationSelect) {
+        let opt = Array.from(durationSelect.options).find(o => o.value === normalized);
+        if (!opt) {
+            opt = new Option(normalized, normalized);
+            durationSelect.add(opt);
+        }
+        durationSelect.value = opt.value;
+        durationSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // focus name field for convenience
+    document.getElementById('booking-name')?.focus();
+}
+
+function showBookingForTour(tour) {
+    const bookingTour = document.getElementById('booking-tour');
+    if (!bookingTour) return;
+
+    openBookingModal();
+    resetBookingContext();
+
+    // Ensure option exists
+    let opt = Array.from(bookingTour.options).find(o => o.value === tour);
+    if (!opt) {
+        opt = new Option(tour, tour);
+        bookingTour.add(opt);
+    }
+    bookingTour.value = tour;
+    bookingTour.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function openBookingModal() {
+    const form = document.getElementById("booking-form");
+    const backdrop = document.getElementById("booking-modal-backdrop");
+    if (!form || !backdrop) return;
+
+    backdrop.hidden = false;
+    form.hidden = false;
+    form.classList.add("is-open");
+    document.body.classList.add("booking-modal-open");
+}
+
+function closeBookingModal() {
+    const form = document.getElementById("booking-form");
+    const backdrop = document.getElementById("booking-modal-backdrop");
+    if (!form || !backdrop || form.hidden) return;
+
+    form.classList.remove("is-open");
+    form.hidden = true;
+    backdrop.hidden = true;
+    document.body.classList.remove("booking-modal-open");
+}
+
+function resetBookingContext() {
+    document.getElementById("booking-form")?.reset();
+    const fields = document.getElementById("booking-fields");
+    if (fields) fields.hidden = true;
+    const description = document.getElementById("booking-tour-description");
+    if (description) description.hidden = true;
+    const agendaInput = document.getElementById("booking-agenda-id");
+    const priceInput = document.getElementById("booking-price");
+    if (agendaInput) agendaInput.value = "";
+    if (priceInput) priceInput.value = "";
+    setText("selected-agenda-feedback", "");
+    setText("form-feedback", "");
+    updateBookingPriceUI("");
 }
 
 function initPasswordToggles() {
@@ -205,6 +373,8 @@ async function handleBookingSubmit(event) {
     event.preventDefault();
 
     const feedback = document.getElementById("form-feedback");
+    const priceDetails = getBookingPriceDetails();
+    const people = Math.max(1, Number(getValue("booking-people") || 1));
     const payload = {
         name: getValue("booking-name"),
         email: getValue("booking-email"),
@@ -212,8 +382,12 @@ async function handleBookingSubmit(event) {
         tour: getValue("booking-tour"),
         agendaId: getValue("booking-agenda-id"),
         date: getValue("booking-date") || "A coordinar",
-        people: getValue("booking-people"),
+        people,
         duration: getValue("booking-duration"),
+        pricePerPerson: priceDetails.pricePerPerson,
+        priceTotal: priceDetails.total,
+        priceLabel: priceDetails.label,
+        source: getValue("booking-agenda-id") ? "agenda" : "recorrido",
         message: getValue("booking-message"),
         uid: state.user?.uid || null
     };
@@ -223,57 +397,33 @@ async function handleBookingSubmit(event) {
         return;
     }
 
-    if (state.firebaseReady) {
-        try {
-            await state.firestore.addDoc(state.firestore.collection(state.db, "registrations"), {
-                ...payload,
-                status: "pending",
-                createdAt: state.firestore.serverTimestamp()
-            });
-
-            if (payload.agendaId && state.user) {
-                await reserveAgendaSpots(payload.agendaId, peopleCount(payload.people));
-            }
-        } catch (error) {
-            console.warn("No se pudo guardar la inscripción en Firebase.", error);
-        }
+    if (!state.firebaseReady) {
+        feedback.textContent = "No se pudo enviar la reserva porque Firebase no está disponible ahora. Probá de nuevo en unos minutos.";
+        return;
     }
 
-        // Determine selected price (from hidden input or option data-price)
-        const priceInput = document.getElementById("booking-price");
-        const durationSelect = document.getElementById("booking-duration");
-        const selectedOption = durationSelect?.selectedOptions?.[0];
-        const priceRaw = (priceInput && priceInput.value) || (selectedOption && selectedOption.dataset && selectedOption.dataset.price) || "";
-        const priceNumber = parsePriceNumber(priceRaw);
-        const currency = detectCurrency(priceRaw);
-        const peopleNum = peopleCount(payload.people);
+    feedback.textContent = "Enviando reserva...";
 
-        const lines = [
-            `Hola Ignacio, soy ${payload.name}.`,
-            `Quiero inscribirme al recorrido "${payload.tour}".`,
-            `Fecha tentativa: ${payload.date}.`,
-            `Cantidad de personas: ${payload.people}.`,
-            `Duración: ${payload.duration}.`,
-        ];
+    try {
+        await state.firestore.addDoc(state.firestore.collection(state.db, "registrations"), {
+            ...payload,
+            status: "pending",
+            createdAt: state.firestore.serverTimestamp()
+        });
 
-        if (priceNumber) {
-            const perPerson = formatCurrency(priceNumber, currency);
-            const total = formatCurrency(priceNumber * peopleNum, currency);
-            lines.push(`Precio por persona: ${perPerson}.`);
-            lines.push(`Precio total estimado: ${total}.`);
-        } else if (priceRaw) {
-            // fallback: include raw price text if available but not parseable
-            lines.push(`Precio: ${priceRaw}.`);
+        if (payload.agendaId && state.user) {
+            await reserveAgendaSpots(payload.agendaId, people);
         }
 
-        lines.push(`Email: ${payload.email}.`);
-        lines.push(`WhatsApp: ${payload.phone}.`);
-        if (payload.agendaId) lines.push("Salida seleccionada desde agenda Firebase.");
-        if (payload.message) lines.push(`Mensaje: ${payload.message}`);
-        lines.push("Entiendo que las salidas son en espacios públicos y no son privadas.");
-
-    feedback.textContent = "Abriendo WhatsApp con tu inscripción...";
-    openWhatsapp(lines.join("\n"));
+        feedback.textContent = "Reserva enviada. Te voy a contactar para confirmar disponibilidad y seña.";
+        event.target.reset();
+        document.getElementById("booking-fields").hidden = true;
+        updateBookingPriceUI("");
+        setTimeout(closeBookingModal, 1400);
+    } catch (error) {
+        console.warn("No se pudo guardar la reserva en Firebase.", error);
+        feedback.textContent = "No se pudo guardar la reserva. Probá de nuevo en unos minutos.";
+    }
 }
 
     function parsePriceNumber(str) {
@@ -306,7 +456,7 @@ async function handleBookingSubmit(event) {
         return `${num} ${currency}`;
     }
 
-    function updateBookingPriceUI(priceRaw) {
+function updateBookingPriceUI(priceRaw) {
         const display = document.getElementById("booking-price-display");
         const priceInput = document.getElementById("booking-price");
         const peopleSelect = document.getElementById("booking-people");
@@ -335,6 +485,30 @@ async function handleBookingSubmit(event) {
 
         display.hidden = false;
     }
+
+function getBookingPriceDetails() {
+    const priceInput = document.getElementById("booking-price");
+    const durationSelect = document.getElementById("booking-duration");
+    const selectedOption = durationSelect?.selectedOptions?.[0];
+    const priceRaw = priceInput?.value || selectedOption?.dataset?.price || "";
+    const priceNumber = parsePriceNumber(priceRaw);
+    const currency = detectCurrency(priceRaw);
+    const people = Math.max(1, Number(getValue("booking-people") || 1));
+
+    if (!priceNumber) {
+        return {
+            pricePerPerson: null,
+            total: null,
+            label: priceRaw ? `Precio: ${priceRaw}` : "Precio a confirmar"
+        };
+    }
+
+    return {
+        pricePerPerson: priceNumber,
+        total: priceNumber * people,
+        label: `${formatCurrency(priceNumber, currency)} por persona · ${formatCurrency(priceNumber * people, currency)} total`
+    };
+}
 
 async function handleSuggestionSubmit(event) {
     event.preventDefault();
@@ -536,7 +710,7 @@ function renderAgenda(items) {
             <span>${escapeHtml(item.duration || "Duración a completar")} · ${escapeHtml(item.price || "Precio según duración")}</span>
             <span>${escapeHtml(item.meeting || "Punto de encuentro a confirmar")}</span>
             <em>${escapeHtml(item.spots || capacityLabel(item) || "Cupos a confirmar")}</em>
-            ${item.id ? `<button class="site-button site-button--small" type="button" data-select-agenda="${escapeHtml(item.id)}" data-agenda-tour="${escapeHtml(item.tour || "")}" data-agenda-date="${escapeHtml(item.date || "")}" data-agenda-time="${escapeHtml(item.time || "")}" data-agenda-duration="${escapeHtml(item.duration || "")}" data-agenda-price="${escapeHtml(item.price || "")}">Elegir esta salida</button>` : ""}
+            ${item.id ? `<button class="site-button site-button--small" type="button" data-select-agenda="${escapeHtml(item.id)}" data-agenda-tour="${escapeHtml(item.tour || "")}" data-agenda-date="${escapeHtml(item.date || "")}" data-agenda-time="${escapeHtml(item.time || "")}" data-agenda-duration="${escapeHtml(item.duration || "")}" data-agenda-price="${escapeHtml(item.price || "")}">Sumarme a esta salida</button>` : ""}
         </article>
     `).join("");
 
@@ -596,6 +770,9 @@ function selectAgendaItem(button) {
     const duration = button.dataset.agendaDuration || "";
     const price = button.dataset.agendaPrice || "";
 
+    openBookingModal();
+    resetBookingContext();
+
     const agendaInput = document.getElementById("booking-agenda-id");
     const tourInput = document.getElementById("booking-tour");
     const dateInput = document.getElementById("booking-date");
@@ -603,7 +780,14 @@ function selectAgendaItem(button) {
     const priceInput = document.getElementById("booking-price");
 
     if (agendaInput) agendaInput.value = agendaId;
-    if (tourInput && tour) tourInput.value = tour;
+    if (tourInput && tour) {
+        if (![...tourInput.options].some(option => option.value === tour)) {
+            tourInput.add(new Option(tour, tour));
+        }
+        tourInput.value = tour;
+        // trigger handler to reveal fields, description and set duration
+        tourInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     if (dateInput && date) dateInput.value = date;
     if (durationInput && (duration || price)) {
         const value = duration || "Duración";
@@ -632,10 +816,8 @@ function selectAgendaItem(button) {
 
     setText(
         "selected-agenda-feedback",
-        `Salida seleccionada: ${tour || "recorrido"} ${date ? `· ${date}` : ""} ${time ? `· ${time}` : ""}.`
+        `Salida especial seleccionada: ${tour || "recorrido"} ${date ? `· ${date}` : ""} ${time ? `· ${time}` : ""}.`
     );
-
-    document.getElementById("booking-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function peopleCount(label) {
