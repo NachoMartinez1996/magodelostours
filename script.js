@@ -17,18 +17,18 @@ let isApplyingServiceWorkerUpdate = false;
 
 // Memory Game Data
 const memoryData = [
-    { imagen: "castagnino.jpg", referencia: "Museo Municipal de Bellas Artes 'Juan B. Castagnino'" },
-    { imagen: "catedral.jpg", referencia: "Catedral Basílica Santuario 'Nuestra Señora del Rosario'" },
-    { imagen: "escarapela.png", referencia: "Cuna de la Escarapela" },
-    { imagen: "estevez.jpg", referencia: "Museo de Arte Decorativo 'Firma y Odilo Estévez'" },
-    { imagen: "helado.jpg", referencia: "Capital Nacional del Helado Artesanal" },
-    { imagen: "independencia.jpg", referencia: "Parque Independencia" },
-    { imagen: "monumento.jpg", referencia: "Monumento Histórico Nacional a la Bandera" },
-    { imagen: "puente.jpg", referencia: "Puente 'Nuestra Señora del Rosario'" },
-    { imagen: "urquiza.jpg", referencia: "Parque Urquiza" },
-    { imagen: "gigante.png", referencia: "Estadio Mundialista 'Gigante de Arroyito'" },
-    { imagen: "coloso.jpg", referencia: "Estadio 'Marcelo A. Bielsa'" },
-    { imagen: "elcirculo.png", referencia: "Teatro El Círculo" }
+    { imagen: "Memoria/castagnino.jpg", referencia: "Museo Municipal de Bellas Artes 'Juan B. Castagnino'" },
+    { imagen: "Memoria/catedral.jpg", referencia: "Catedral Basílica Santuario 'Nuestra Señora del Rosario'" },
+    { imagen: "Memoria/escarapela.png", referencia: "Cuna de la Escarapela" },
+    { imagen: "Memoria/estevez.jpg", referencia: "Museo de Arte Decorativo 'Firma y Odilo Estévez'" },
+    { imagen: "Memoria/helado.jpg", referencia: "Capital Nacional del Helado Artesanal" },
+    { imagen: "Memoria/independencia.jpg", referencia: "Parque Independencia" },
+    { imagen: "Memoria/monumento.jpg", referencia: "Monumento Histórico Nacional a la Bandera" },
+    { imagen: "Memoria/puente.jpg", referencia: "Puente 'Nuestra Señora del Rosario'" },
+    { imagen: "Memoria/urquiza.jpg", referencia: "Parque Urquiza" },
+    { imagen: "Memoria/gigante.png", referencia: "Estadio Mundialista 'Gigante de Arroyito'" },
+    { imagen: "Memoria/coloso.jpg", referencia: "Estadio 'Marcelo A. Bielsa'" },
+    { imagen: "Memoria/elcirculo.png", referencia: "Teatro El Círculo" }
 ];
 
 // Challenge Game Data - Words

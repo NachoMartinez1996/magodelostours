@@ -129,6 +129,27 @@ function initForms() {
     });
 
     initPasswordToggles();
+
+    // Price display/update handlers for the booking form
+    const durationSelect = document.getElementById("booking-duration");
+    const peopleSelect = document.getElementById("booking-people");
+
+    if (durationSelect) {
+        durationSelect.addEventListener("change", () => {
+            const selected = durationSelect.selectedOptions?.[0];
+            const price = selected?.dataset?.price || "";
+            const priceInput = document.getElementById("booking-price");
+            if (priceInput) priceInput.value = price || "";
+            updateBookingPriceUI(price || "");
+        });
+    }
+
+    if (peopleSelect) {
+        peopleSelect.addEventListener("change", () => {
+            const price = document.getElementById("booking-price")?.value || "";
+            updateBookingPriceUI(price || "");
+        });
+    }
 }
 
 function initPasswordToggles() {
@@ -218,22 +239,102 @@ async function handleBookingSubmit(event) {
         }
     }
 
-    const lines = [
-        `Hola Ignacio, soy ${payload.name}.`,
-        `Quiero inscribirme al recorrido "${payload.tour}".`,
-        `Fecha tentativa: ${payload.date}.`,
-        `Cantidad de personas: ${payload.people}.`,
-        `Duración / precio: ${payload.duration}.`,
-        `Email: ${payload.email}.`,
-        `WhatsApp: ${payload.phone}.`,
-        payload.agendaId ? "Salida seleccionada desde agenda Firebase." : "",
-        payload.message ? `Mensaje: ${payload.message}` : "",
-        "Entiendo que las salidas son en espacios públicos y no son privadas."
-    ].filter(Boolean);
+        // Determine selected price (from hidden input or option data-price)
+        const priceInput = document.getElementById("booking-price");
+        const durationSelect = document.getElementById("booking-duration");
+        const selectedOption = durationSelect?.selectedOptions?.[0];
+        const priceRaw = (priceInput && priceInput.value) || (selectedOption && selectedOption.dataset && selectedOption.dataset.price) || "";
+        const priceNumber = parsePriceNumber(priceRaw);
+        const currency = detectCurrency(priceRaw);
+        const peopleNum = peopleCount(payload.people);
+
+        const lines = [
+            `Hola Ignacio, soy ${payload.name}.`,
+            `Quiero inscribirme al recorrido "${payload.tour}".`,
+            `Fecha tentativa: ${payload.date}.`,
+            `Cantidad de personas: ${payload.people}.`,
+            `Duración: ${payload.duration}.`,
+        ];
+
+        if (priceNumber) {
+            const perPerson = formatCurrency(priceNumber, currency);
+            const total = formatCurrency(priceNumber * peopleNum, currency);
+            lines.push(`Precio por persona: ${perPerson}.`);
+            lines.push(`Precio total estimado: ${total}.`);
+        } else if (priceRaw) {
+            // fallback: include raw price text if available but not parseable
+            lines.push(`Precio: ${priceRaw}.`);
+        }
+
+        lines.push(`Email: ${payload.email}.`);
+        lines.push(`WhatsApp: ${payload.phone}.`);
+        if (payload.agendaId) lines.push("Salida seleccionada desde agenda Firebase.");
+        if (payload.message) lines.push(`Mensaje: ${payload.message}`);
+        lines.push("Entiendo que las salidas son en espacios públicos y no son privadas.");
 
     feedback.textContent = "Abriendo WhatsApp con tu inscripción...";
     openWhatsapp(lines.join("\n"));
 }
+
+    function parsePriceNumber(str) {
+        if (!str) return null;
+        const m = String(str).match(/(\d{1,3}(?:[.,]\d{3})*|\d+)/);
+        if (!m) return null;
+        const num = Number(m[1].replace(/[.,]/g, ""));
+        return Number.isFinite(num) ? num : null;
+    }
+
+    function detectCurrency(str) {
+        if (!str) return 'ARS';
+        const s = String(str).toLowerCase();
+        if (s.includes('dólar') || s.includes('dolar') || s.includes('usd')) return 'USD';
+        if (s.includes('euro') || s.includes('eur')) return 'EUR';
+        return 'ARS';
+    }
+
+    function formatCurrency(num, currency = 'ARS') {
+        if (num == null) return '';
+        if (currency === 'ARS') {
+            return `$${String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ".")} ARS`;
+        }
+        if (currency === 'USD') {
+            return `$${String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} USD`;
+        }
+        if (currency === 'EUR') {
+            return `€${String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} EUR`;
+        }
+        return `${num} ${currency}`;
+    }
+
+    function updateBookingPriceUI(priceRaw) {
+        const display = document.getElementById("booking-price-display");
+        const priceInput = document.getElementById("booking-price");
+        const peopleSelect = document.getElementById("booking-people");
+
+        if (!display) return;
+
+        if (!priceRaw || String(priceRaw).trim() === "") {
+            display.hidden = true;
+            if (priceInput) priceInput.value = "";
+            return;
+        }
+
+        if (priceInput) priceInput.value = priceRaw;
+
+        const priceNumber = parsePriceNumber(priceRaw);
+        const currency = detectCurrency(priceRaw);
+        const peopleNum = peopleCount(peopleSelect?.value);
+
+        if (priceNumber) {
+            const perPerson = formatCurrency(priceNumber, currency);
+            const total = formatCurrency(priceNumber * peopleNum, currency);
+            display.textContent = `Precio por persona: ${perPerson}. Total estimado (${peopleSelect?.value || ''}): ${total}.`;
+        } else {
+            display.textContent = `Precio: ${priceRaw}.`;
+        }
+
+        display.hidden = false;
+    }
 
 async function handleSuggestionSubmit(event) {
     event.preventDefault();
@@ -499,17 +600,35 @@ function selectAgendaItem(button) {
     const tourInput = document.getElementById("booking-tour");
     const dateInput = document.getElementById("booking-date");
     const durationInput = document.getElementById("booking-duration");
+    const priceInput = document.getElementById("booking-price");
 
     if (agendaInput) agendaInput.value = agendaId;
     if (tourInput && tour) tourInput.value = tour;
     if (dateInput && date) dateInput.value = date;
     if (durationInput && (duration || price)) {
-        const value = `${duration || "Duración"} - ${price || "precio a confirmar"}`;
-        if (![...durationInput.options].some(option => option.value === value)) {
-            durationInput.add(new Option(value, value));
+        const value = duration || "Duración";
+        let existing = [...durationInput.options].find(opt => opt.value === value);
+        if (!existing) {
+            existing = new Option(value, value);
+            durationInput.add(existing);
+        }
+        if (price) {
+            existing.dataset.price = price;
+            if (!existing.dataset.originalText) existing.dataset.originalText = existing.text;
+            const parsed = parsePriceNumber(price);
+            const currency = detectCurrency(price);
+            const displayPrice = parsed ? formatCurrency(parsed, currency) : price;
+            existing.text = `${value} - ${displayPrice}`;
+        } else if (existing.dataset.originalText) {
+            existing.text = existing.dataset.originalText;
         }
         durationInput.value = value;
     }
+
+    if (priceInput) priceInput.value = price || "";
+
+    // Update visible price UI
+    updateBookingPriceUI(price || (durationInput?.selectedOptions?.[0]?.dataset?.price || ""));
 
     setText(
         "selected-agenda-feedback",
