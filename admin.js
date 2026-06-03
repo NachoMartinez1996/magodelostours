@@ -111,12 +111,36 @@ function bindAdminEvents() {
 
 function initPasswordToggles() {
     document.querySelectorAll("[data-toggle-password]").forEach(toggle => {
-        const input = document.getElementById(toggle.dataset.togglePassword);
+        const targetId = toggle.dataset.togglePassword;
+        const input = document.getElementById(targetId);
         if (!input) return;
 
-        toggle.addEventListener("change", () => {
-            input.type = toggle.checked ? "text" : "password";
-        });
+        const handleToggle = () => {
+            const tag = toggle.tagName.toLowerCase();
+            if (tag === 'input' && toggle.type === 'checkbox') {
+                input.type = toggle.checked ? 'text' : 'password';
+                return;
+            }
+
+            const isVisible = input.type === 'text';
+            if (isVisible) {
+                input.type = 'password';
+                toggle.classList.remove('is-visible');
+                toggle.setAttribute('aria-pressed', 'false');
+                toggle.setAttribute('aria-label', 'Mostrar contraseña');
+            } else {
+                input.type = 'text';
+                toggle.classList.add('is-visible');
+                toggle.setAttribute('aria-pressed', 'true');
+                toggle.setAttribute('aria-label', 'Ocultar contraseña');
+            }
+        };
+
+        if (toggle.tagName.toLowerCase() === 'input' && toggle.type === 'checkbox') {
+            toggle.addEventListener('change', handleToggle);
+        } else {
+            toggle.addEventListener('click', handleToggle);
+        }
     });
 }
 

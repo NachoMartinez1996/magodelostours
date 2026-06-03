@@ -32,9 +32,15 @@
             <a href="#recorridos" data-view-link="recorridos">Recorridos</a>
             <a href="#agenda" data-view-link="agenda">Agenda</a>
             <a href="#comunidad" data-view-link="comunidad">Comunidad</a>
+            <a href="#juegos" data-view-link="juegos" id="nav-juegos">Juegos</a>
+            <a href="#perfil" data-view-link="perfil">Mi perfil</a>
             <a href="#contacto" data-view-link="contacto">Contacto</a>
-            <a href="juegos.html" id="nav-juegos">Juegos</a>
         </nav>
+
+        <div id="header-user" class="header-user">
+            <span id="header-user-name" class="header-user__name"></span>
+            <button id="header-user-action" class="site-button site-button--small" type="button">Entrar</button>
+        </div>
 
         <a class="site-button site-button--small" href="https://wa.me/5493413504208?text=Hola%20Ignacio%2C%20quiero%20consultar%20por%20un%20recorrido%20guiado%20en%20Rosario." target="_blank" rel="noopener">
             WhatsApp
@@ -397,35 +403,6 @@
             </section>
 
             <section class="site-section split-section">
-                <div class="booking-form auth-card">
-                    <p class="site-eyebrow">Usuarios</p>
-                    <h3>Registro y acceso</h3>
-                    <p id="auth-status">Creá una cuenta para dejar reseñas asociadas a tu usuario.</p>
-                    <div class="form-row">
-                        <label>
-                            Nombre
-                            <input id="auth-name" type="text" autocomplete="name">
-                        </label>
-                        <label>
-                            Email
-                            <input id="auth-email" type="email" autocomplete="email">
-                        </label>
-                    </div>
-                    <label>
-                        Contraseña
-                        <input id="auth-password" type="password" autocomplete="current-password">
-                    </label>
-                    <label class="checkbox-label password-toggle">
-                        <input type="checkbox" data-toggle-password="auth-password">
-                        Mostrar contraseña
-                    </label>
-                    <div class="button-row">
-                        <button class="site-button site-button--small" type="button" id="register-user-btn">Registrarme</button>
-                        <button class="site-button site-button--small site-button--light" type="button" id="login-user-btn">Ingresar</button>
-                        <button class="site-button site-button--small site-button--light" type="button" id="logout-user-btn" hidden>Salir</button>
-                    </div>
-                </div>
-
                 <form class="booking-form" id="suggestion-form">
                     <p class="site-eyebrow">Sugerencias</p>
                     <h3>Pedí o sugerí un recorrido</h3>
@@ -465,6 +442,10 @@
                 <form class="booking-form" id="review-form">
                     <p class="site-eyebrow">Dejá tu reseña</p>
                     <label>
+                        Nombre
+                        <input id="review-name" type="text" autocomplete="name">
+                    </label>
+                    <label>
                         Estrellas
                         <select id="review-stars">
                             <option value="5">★★★★★ 5</option>
@@ -482,6 +463,50 @@
                     <p class="form-feedback" id="review-feedback" aria-live="polite"></p>
                 </form>
             </section>
+        </div>
+
+        <!-- Perfil: vista dedicada para registro y login -->
+        <div class="page-view" id="view-perfil" data-view="perfil">
+            <section class="site-section split-section">
+                <div class="booking-form auth-card">
+                    <p class="site-eyebrow">Mi perfil</p>
+                    <h3>Registro y acceso</h3>
+                    <p id="auth-status">Iniciá sesión o creá una cuenta para autocompletar reservas.</p>
+                    <div class="form-row">
+                        <label class="auth-name-field" hidden>
+                            Nombre
+                            <input id="auth-name" type="text" autocomplete="name">
+                        </label>
+                        <label>
+                            Email
+                            <input id="auth-email" type="email" autocomplete="email">
+                        </label>
+                    </div>
+                    <label class="input-with-icon">
+                        Contraseña
+                        <div class="input-with-icon__wrap">
+                            <input id="auth-password" type="password" autocomplete="current-password">
+                            <button type="button" class="password-toggle-btn" data-toggle-password="auth-password" aria-pressed="false" aria-label="Mostrar contraseña">
+                                <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M1 1l22 22"></path>
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.2-3.01 3.66-5.42 6.53-6.66"></path>
+                                    <path d="M9.88 9.88A3 3 0 0 0 14.12 14.12"></path>
+                                </svg>
+                                <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    </label>
+                    <div class="button-row">
+                        <button class="site-button site-button--small" type="button" id="register-user-btn">Registrarme</button>
+                        <button class="site-button site-button--small site-button--light" type="button" id="login-user-btn">Ingresar</button>
+                        <button class="site-button site-button--small site-button--light" type="button" id="logout-user-btn" hidden>Salir</button>
+                    </div>
+                </div>
+            </section>
+
         </div>
 
         <div class="page-view" id="view-contacto" data-view="contacto">
@@ -540,6 +565,180 @@
                 </article>
             </section>
         </div>
+        
+        <!-- Juegos: integrada como vista SPA -->
+        <div class="page-view" id="view-juegos" data-view="juegos">
+            <main class="app-shell">
+                <section class="hero">
+                    <p class="eyebrow">Experiencia interactiva</p>
+                    <h1>Juegos de Rosario</h1>
+                    <p class="hero-copy">
+                        Elegí entre el juego de memoria clásico y el desafío de tarjetas.
+                        Esta webapp también puede instalarse y quedar disponible sin conexión.
+                    </p>
+
+                    <div class="hero-toolbar">
+                        <div class="status-pills" aria-live="polite">
+                            <div id="offline-status" class="status-pill status-pill--pending">
+                                <span class="status-pill__icon" aria-hidden="true"></span>
+                                <span id="offline-status-label">Comprobando modo offline...</span>
+                            </div>
+                            <div id="update-status" class="status-pill status-pill--neutral is-hidden">
+                                <span class="status-pill__icon" aria-hidden="true"></span>
+                                <span id="update-status-label">Nueva versión disponible</span>
+                            </div>
+                        </div>
+
+                        <div class="hero-actions">
+                            <a class="ghost-button link-button" href="#">Volver a tours</a>
+                            <button id="clear-cache-btn" class="ghost-button" type="button">
+                                Limpiar caché
+                            </button>
+                        </div>
+                    </div>
+
+                    <p id="cache-feedback" class="hero-actions__hint" aria-live="polite">
+                        El indicador offline te avisa cuando esta página ya quedó guardada en el dispositivo.
+                    </p>
+                </section>
+
+                <div id="update-banner" class="notice notice--warning is-hidden" aria-live="polite">
+                    <div class="update-banner__body">
+                        <strong id="update-banner-title">Nueva versión disponible.</strong>
+                        <p id="update-banner-text">
+                            Ya hay una actualización lista para aplicar en esta webapp.
+                        </p>
+                    </div>
+                    <div class="update-banner__actions">
+                        <button id="update-app-btn" class="secondary-button" type="button">
+                            Actualizar ahora
+                        </button>
+                    </div>
+                </div>
+
+                <section id="home-view" class="view view--active" aria-labelledby="home-title">
+                    <div class="section-heading">
+                        <div>
+                            <h2 id="home-title">Seleccioná tu juego</h2>
+                        </div>
+                    </div>
+
+                    <div class="mode-grid">
+                        <article class="mode-card">
+                            <p class="mode-card__tag">Módulo 1</p>
+                            <h3>Juego de Memoria</h3>
+                            <p>
+                                Encontrá las 12 parejas entre imágenes y referencias.
+                            </p>
+                            <button class="primary-button" type="button" data-open-view="memory-view">
+                                Jugar memoria
+                            </button>
+                        </article>
+
+                        <article class="mode-card mode-card--accent">
+                            <p class="mode-card__tag">Módulo 2</p>
+                            <h3>Desafío Rosario Te Guío</h3>
+                            <p>
+                                Descubrí las 3 palabras en orden o dispará trivias con preguntas sobre la historia
+                                de Rosario. 9 tarjetas: 3 palabras + 6 trivias.
+                            </p>
+                            <button class="primary-button" type="button" data-open-view="challenge-view">
+                                Jugar desafío
+                            </button>
+                        </article>
+                    </div>
+
+                    <!-- Leaderboards for games -->
+                    <section class="site-section leaderboard-section" aria-labelledby="leaderboard-title">
+                        <div class="section-heading">
+                            <h3 id="leaderboard-title">Tabla de posiciones</h3>
+                            <p class="site-eyebrow">Los mejores jugadores (se guarda solo si estás logueado)</p>
+                        </div>
+                        <div class="leaderboards-grid">
+                            <div class="leaderboard-card">
+                                <h4>Memoria (tiempo restante)</h4>
+                                <table id="leaderboard-memory" class="leaderboard-table">
+                                    <thead><tr><th>#</th><th>Jugador</th><th>Tiempo (s)</th><th>Fecha</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div class="leaderboard-card">
+                                <h4>Desafío (aciertos)</h4>
+                                <table id="leaderboard-challenge" class="leaderboard-table">
+                                    <thead><tr><th>#</th><th>Jugador</th><th>Aciertos</th><th>Fecha</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                </section>
+
+                <section id="memory-view" class="view" aria-labelledby="memory-title">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-kicker">Módulo 1</p>
+                            <h2 id="memory-title">Juego de Memoria</h2>
+                        </div>
+                        <button class="ghost-button" type="button" data-open-view="home-view">
+                            Volver al inicio
+                        </button>
+                    </div>
+
+                    <div class="panel panel--status">
+                        <div class="status-chip">
+                            <span>Tiempo restante</span>
+                            <strong id="memory-time">120 s</strong>
+                        </div>
+                        <div class="status-chip">
+                            <span>Pares encontrados</span>
+                            <strong id="memory-progress">0 / 12</strong>
+                        </div>
+                        <div class="action-row">
+                            <button id="memory-start-btn" class="primary-button" type="button">Iniciar juego</button>
+                            <button id="memory-reset-btn" class="secondary-button" type="button">Reiniciar</button>
+                        </div>
+                    </div>
+
+                    <div id="memory-feedback" class="notice notice--neutral" aria-live="polite">
+                        Emparejá cada imagen con su referencia antes de que termine el tiempo.
+                    </div>
+
+                    <div id="memory-board" class="board board--memory" aria-live="polite"></div>
+                </section>
+
+                <section id="challenge-view" class="view" aria-labelledby="challenge-title">
+                    <div class="section-heading">
+                        <div>
+                            <p class="section-kicker">Módulo 2</p>
+                            <h2 id="challenge-title">Desafío Rosario Te Guío</h2>
+                        </div>
+                        <button class="ghost-button" type="button" data-open-view="home-view">
+                            Volver al inicio
+                        </button>
+                    </div>
+
+                    <div class="panel panel--status">
+                        <div class="status-chip">
+                            <span>Tablero</span>
+                            <strong>3 x 3 tarjetas</strong>
+                        </div>
+                        <div class="status-chip">
+                            <span>Palabras encontradas</span>
+                            <strong id="challenge-word-count">0 / 3</strong>
+                        </div>
+                        <div class="action-row">
+                            <button id="challenge-reset-btn" class="secondary-button" type="button">Reiniciar</button>
+                        </div>
+                    </div>
+
+                    <div id="challenge-feedback" class="notice notice--neutral" aria-live="polite">
+                        Hacé clic en las tarjetas para descubrir palabras o trivias.
+                    </div>
+
+                    <div id="challenge-board" class="board board--challenge" aria-live="polite"></div>
+                </section>
+            </main>
+        </div>
     </main>
 
     <div class="booking-modal-backdrop" id="booking-modal-backdrop" hidden></div>
@@ -550,10 +749,11 @@
             <strong>El Mago de los Tours</strong><br>
             Rosario a la Carta - con el apoyo de Rosario Te Guío
         </p>
-        <a href="juegos.html">Juegos de Rosario</a>
+        <a href="#juegos" data-view-link="juegos">Juegos de Rosario</a>
         <a href="admin.html">Panel del desarrollador</a>
     </footer>
 
     <script type="module" src="site.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

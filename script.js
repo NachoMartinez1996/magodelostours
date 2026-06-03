@@ -14,6 +14,17 @@ const OFFLINE_REQUIRED_FILES = [
 let serviceWorkerRegistration = null;
 let pendingServiceWorker = null;
 let isApplyingServiceWorkerUpdate = false;
+// Firebase for games (optional): version and runtime state
+const FIREBASE_VERSION = "12.14.0";
+const gamesState = {
+    app: null,
+    auth: null,
+    db: null,
+    firestore: null,
+    authFns: null,
+    user: null,
+    firebaseReady: false
+};
 
 // Memory Game Data
 const memoryData = [
@@ -70,6 +81,44 @@ const triviaDecks = [
                 reference: "El 22 de febrero de 1874, Teófilo Zeballos, mejicano, se elevaba en el cielo rosarino, dando lugar a la primera ascensión en globo aerostático en nuestra ciudad, lo llevó a cabo en la actual Plaza López.",
                 source: "revista 'Una Mano de su Mutual', Asociación Médica de Rosario, Año 2, Nº 9, Marzo 1996. Pág.34-36."
             }
+        // Update header user area on juegos.html using gamesState or localStorage.authUser
+        function updateGamesHeaderUI() {
+            const nameEl = document.getElementById('games-user-name');
+            const actionBtn = document.getElementById('games-user-action');
+            if (!nameEl || !actionBtn) return;
+
+            let user = gamesState.user;
+            if (!user) {
+                try { user = JSON.parse(localStorage.getItem('authUser') || 'null'); } catch (e) { user = null; }
+            }
+
+            if (user && (user.uid || user.email)) {
+                const display = user.displayName || user.email || user.name || 'Usuario';
+                nameEl.textContent = display;
+                actionBtn.textContent = 'Cerrar sesión';
+                actionBtn.onclick = async () => {
+                    // Prefer Firebase sign out if available
+                    if (gamesState.firebaseReady && gamesState.authFns && gamesState.auth) {
+                        try {
+                            await gamesState.authFns.signOut(gamesState.auth);
+                        } catch (e) { console.warn('Error en signOut:', e); }
+                    }
+                    try { localStorage.removeItem('authUser'); } catch (e) {}
+                    updateGamesHeaderUI();
+                    // redirect to perfil page to encourage re-login if needed
+                    window.location.href = 'index.html#perfil';
+                };
+            } else {
+                nameEl.textContent = '';
+                actionBtn.textContent = 'Entrar';
+                actionBtn.onclick = () => { window.location.href = 'index.html#perfil'; };
+            }
+        }
+
+        // Sync header when other tabs update authUser
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'authUser') updateGamesHeaderUI();
+        });
         ]
     },
     {
@@ -326,6 +375,207 @@ function initializeApp() {
     initializeAppControls();
     showAppliedUpdateFeedback();
     registerServiceWorker();
+    // Try to initialize Firebase for global leaderboards, but always render local first
+    try { renderLeaderboards(); } catch (e) { /* ignore */ }
+    try { initFirebaseGames(); } catch (e) { /* ignore */ }
+    try { updateGamesHeaderUI(); } catch (e) {}
+}
+
+// Initialize Firebase (games page) to use Firestore leaderboards when available
+async function initFirebaseGames() {
+    try {
+        const [appMod, authMod, firestoreMod] = await Promise.all([
+            import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+            import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
+            import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
+        ]);
+        const cfg = await import('./firebase-config.js');
+
+        gamesState.app = appMod.initializeApp(cfg.firebaseConfig);
+        gamesState.auth = authMod.getAuth(gamesState.app);
+        gamesState.db = firestoreMod.getFirestore(gamesState.app);
+        gamesState.firestore = firestoreMod;
+        gamesState.authFns = authMod;
+        gamesState.firebaseReady = true;
+
+        // Track auth state so we only allow writes when user is authenticated with Firebase
+        authMod.onAuthStateChanged(gamesState.auth, user => {
+            gamesState.user = user;
+            try { updateGamesHeaderUI(); } catch (e) {}
+        });
+
+        // Subscribe to realtime leaderboards updates
+        subscribeLeaderboardsFirestore();
+    } catch (error) {
+        console.warn('Firebase para juegos no está disponible:', error);
+    }
+}
+
+function subscribeLeaderboardsFirestore() {
+    if (!gamesState.firebaseReady) return;
+    try {
+        const { collection, query, orderBy, limit: limitFn, onSnapshot } = gamesState.firestore;
+        const memCol = collection(gamesState.db, 'leaderboard_memory');
+        const chCol = collection(gamesState.db, 'leaderboard_challenge');
+        const memQ = query(memCol, orderBy('score', 'desc'), limitFn(10));
+        const chQ = query(chCol, orderBy('score', 'desc'), limitFn(10));
+
+        onSnapshot(memQ, snapshot => {
+            const entries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderTableFromEntries('leaderboard-memory', entries);
+        }, err => console.warn('Error snapshot leaderboard_memory', err));
+
+        onSnapshot(chQ, snapshot => {
+            const entries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderTableFromEntries('leaderboard-challenge', entries);
+        }, err => console.warn('Error snapshot leaderboard_challenge', err));
+    } catch (e) {
+        console.warn('No se pudo suscribir a leaderboards en Firestore', e);
+    }
+}
+
+// --- Leaderboard helpers (localStorage-backed) ---
+function getAuthUserFromLocal() {
+    try {
+        const raw = localStorage.getItem('authUser');
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+function loadLeaderboard(game) {
+    try {
+        const raw = localStorage.getItem('leaderboard_' + game) || '[]';
+        return JSON.parse(raw);
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveLeaderboard(game, entries) {
+    try {
+        localStorage.setItem('leaderboard_' + game, JSON.stringify(entries));
+    } catch (e) {
+        console.warn('No se pudo guardar leaderboard', e);
+    }
+}
+// Fallback local save (keeps previous behavior)
+async function addScoreLocal(game, scoreValue, details = {}) {
+    const user = getAuthUserFromLocal();
+    if (!user) return false;
+    const entries = loadLeaderboard(game);
+    const entry = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,8),
+        uid: user.uid || null,
+        name: user.displayName || user.email || 'Jugador',
+        email: user.email || null,
+        score: Number(scoreValue) || 0,
+        details: details || {},
+        when: new Date().toISOString()
+    };
+    entries.push(entry);
+    // sort: higher score first
+    entries.sort((a,b) => b.score - a.score);
+    // keep top 50
+    saveLeaderboard(game, entries.slice(0, 50));
+    return true;
+}
+
+// Primary addScore: try Firestore when available and user is authenticated there,
+// otherwise fall back to local storage.
+async function addScore(game, scoreValue, details = {}) {
+    // If Firestore is available, prefer writing there (requires Firebase Auth)
+    if (gamesState.firebaseReady) {
+        if (gamesState.user && gamesState.user.uid) {
+            try {
+                const { collection, addDoc, serverTimestamp } = gamesState.firestore;
+                const colName = game === 'memory' ? 'leaderboard_memory' : 'leaderboard_challenge';
+                await gamesState.firestore.addDoc(gamesState.firestore.collection(gamesState.db, colName), {
+                    uid: gamesState.user.uid,
+                    name: gamesState.user.displayName || gamesState.user.email || 'Jugador',
+                    email: gamesState.user.email || null,
+                    score: Number(scoreValue) || 0,
+                    details: details || {},
+                    when: gamesState.firestore.serverTimestamp()
+                });
+                return true;
+            } catch (e) {
+                console.warn('No se pudo guardar en Firestore, usando fallback local', e);
+                return await addScoreLocal(game, scoreValue, details);
+            }
+        }
+        // Firestore available but user not authenticated => do not write remotely
+        return false;
+    }
+
+    // No Firestore available: use local fallback
+    return await addScoreLocal(game, scoreValue, details);
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+function getIsoFromWhen(when) {
+    if (!when) return '';
+    try {
+        if (typeof when === 'string') return when;
+        if (when.toDate && typeof when.toDate === 'function') return when.toDate().toISOString();
+        if (when.seconds) return new Date(when.seconds * 1000).toISOString();
+        return String(when);
+    } catch (e) { return String(when); }
+}
+
+function renderTableFromEntries(tableId, entries) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
+    tbody.innerHTML = (entries || []).map((e, i) => `\n        <tr>\n            <td>${i+1}</td>\n            <td>${escapeHtml(e.name || '')}</td>\n            <td>${escapeHtml(String(e.score || ''))}</td>\n            <td>${escapeHtml(formatDateShort(getIsoFromWhen(e.when) || ''))}</td>\n        </tr>`).join('');
+}
+
+function formatDateShort(iso) {
+    try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+    } catch (e) { return iso; }
+}
+
+function renderLeaderboardTable(game, tableId) {
+    const entries = loadLeaderboard(game) || [];
+    renderTableFromEntries(tableId, entries);
+}
+
+async function renderLeaderboards() {
+    // If Firestore is available, the onSnapshot subscription will update tables in realtime.
+    // Attempt a one-shot fetch when Firestore is ready; otherwise render local fallback.
+    if (gamesState.firebaseReady) {
+        try {
+            const { collection, query, orderBy, limit: limitFn, getDocs } = gamesState.firestore;
+            const memCol = collection(gamesState.db, 'leaderboard_memory');
+            const chCol = collection(gamesState.db, 'leaderboard_challenge');
+            const memQ = query(memCol, orderBy('score', 'desc'), limitFn(10));
+            const chQ = query(chCol, orderBy('score', 'desc'), limitFn(10));
+            const [memSnap, chSnap] = await Promise.all([
+                gamesState.firestore.getDocs(memQ),
+                gamesState.firestore.getDocs(chQ)
+            ]);
+            renderTableFromEntries('leaderboard-memory', memSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            renderTableFromEntries('leaderboard-challenge', chSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            return;
+        } catch (e) {
+            console.warn('No se pudo leer leaderboards de Firestore:', e);
+        }
+    }
+
+    // Fallback to local storage
+    renderLeaderboardTable('memory', 'leaderboard-memory');
+    renderLeaderboardTable('challenge', 'leaderboard-challenge');
 }
 
 function initializeAppControls() {
@@ -877,7 +1127,7 @@ function resetMemoryGame() {
     setNotice(memoryFeedback, "Presioná iniciar para comenzar una nueva ronda de memoria.", "neutral");
 }
 
-function endMemoryGame(hasWon) {
+async function endMemoryGame(hasWon) {
     stopMemoryTimer();
     clearMemoryResolveTimeout();
 
@@ -886,7 +1136,18 @@ function endMemoryGame(hasWon) {
     memoryBoard.classList.add("is-locked");
 
     if (hasWon) {
-        setNotice(memoryFeedback, "¡Excelente! Encontraste las 12 parejas antes de que terminara el tiempo.", "success");
+        // Attempt to save score (time remaining) if user is logged
+        try {
+            const saved = await addScore('memory', memoryState.timeRemaining, { pairs: memoryState.matchedPairs });
+            if (saved) {
+                setNotice(memoryFeedback, `¡Excelente! Encontraste las 12 parejas antes de que terminara el tiempo. Puntaje guardado (${memoryState.timeRemaining} s).`, "success");
+            } else {
+                setNotice(memoryFeedback, "¡Excelente! Encontraste las 12 parejas antes de que terminara el tiempo. Iniciá sesión para guardar tu puntaje.", "success");
+            }
+        } catch (e) {
+            console.warn('Error guardando puntaje memoria:', e);
+        }
+        try { renderLeaderboards(); } catch (e) {}
     } else {
         setNotice(memoryFeedback, "Se terminó el tiempo. Reiniciá la ronda para volver a intentarlo.", "danger");
     }
@@ -1121,18 +1382,35 @@ function handleTriviaAnswer(optionBtn, selectedOption, question) {
     }, 3000);
 }
 
-function endTriviaMode() {
+async function endTriviaMode() {
     challengeState.triviaMode = false;
     challengeState.currentTriviaCard = null;
     challengeState.currentTriviaQuestions = [];
     clearChallengeAdvanceTimeout();
     const finalScore = challengeState.triviaScore;
     const totalQuestions = challengeState.triviaTotalQuestions;
-    
-    finishChallengeRound(
-        `¡Trivia completada! Acertaste ${finalScore} de ${totalQuestions} preguntas.`,
-        finalScore === totalQuestions ? "success" : "warning"
-    );
+    // Attempt to save challenge score (number of correct answers) if user logged
+    try {
+        const saved = await addScore('challenge', finalScore, { totalQuestions });
+        if (saved) {
+            finishChallengeRound(
+                `¡Trivia completada! Acertaste ${finalScore} de ${totalQuestions} preguntas. Puntaje guardado.`,
+                finalScore === totalQuestions ? "success" : "warning"
+            );
+        } else {
+            finishChallengeRound(
+                `¡Trivia completada! Acertaste ${finalScore} de ${totalQuestions} preguntas. Iniciá sesión para guardar tu puntaje.`,
+                finalScore === totalQuestions ? "success" : "warning"
+            );
+        }
+    } catch (e) {
+        console.warn('Error guardando puntaje desafío:', e);
+        finishChallengeRound(
+            `¡Trivia completada! Acertaste ${finalScore} de ${totalQuestions} preguntas.`,
+            finalScore === totalQuestions ? "success" : "warning"
+        );
+    }
+    try { renderLeaderboards(); } catch (e) {}
 }
 
 function resetChallengeGame() {

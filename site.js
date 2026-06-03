@@ -185,11 +185,87 @@ function initForms() {
     suggestionForm?.addEventListener("submit", handleSuggestionSubmit);
     reviewForm?.addEventListener("submit", handleReviewSubmit);
 
-    document.getElementById("register-user-btn")?.addEventListener("click", handleRegister);
-    document.getElementById("login-user-btn")?.addEventListener("click", handleLogin);
-    document.getElementById("logout-user-btn")?.addEventListener("click", () => {
-        state.authFns?.signOut(state.auth);
-    });
+    // Auth controls: dynamic register/login UX
+    const registerBtn = document.getElementById("register-user-btn");
+    const loginBtn = document.getElementById("login-user-btn");
+    const logoutBtn = document.getElementById("logout-user-btn");
+    const authNameLabel = document.querySelector('.auth-name-field');
+    const authNameInput = document.getElementById('auth-name');
+    const authEmailInput = document.getElementById('auth-email');
+    const authPasswordInput = document.getElementById('auth-password');
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+            state.authFns?.signOut(state.auth);
+        });
+    }
+
+    // Hide name field by default (register flows will show it)
+    if (authNameLabel) authNameLabel.hidden = true;
+
+    let registerMode = false;
+    const enterRegisterMode = () => {
+        if (authNameLabel) authNameLabel.hidden = false;
+        registerMode = true;
+        if (registerBtn) registerBtn.textContent = 'Crear cuenta';
+        if (authNameInput) authNameInput.focus();
+    };
+    const exitRegisterMode = () => {
+        if (authNameLabel) authNameLabel.hidden = true;
+        registerMode = false;
+        if (registerBtn) registerBtn.textContent = 'Registrarme';
+    };
+
+    if (registerBtn) {
+        registerBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!registerMode) {
+                enterRegisterMode();
+                return;
+            }
+            // perform registration
+            registerBtn.disabled = true;
+            if (loginBtn) loginBtn.disabled = true;
+            try {
+                await handleRegister();
+                // on success, ensure register mode is reset
+                exitRegisterMode();
+            } finally {
+                registerBtn.disabled = false;
+                if (loginBtn) loginBtn.disabled = false;
+            }
+        });
+    }
+
+    if (loginBtn) {
+        loginBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            exitRegisterMode();
+            loginBtn.disabled = true;
+            if (registerBtn) registerBtn.disabled = true;
+            try {
+                await handleLogin();
+            } finally {
+                loginBtn.disabled = false;
+                if (registerBtn) registerBtn.disabled = false;
+            }
+        });
+    }
+
+    // allow Enter on password to trigger login
+    if (authPasswordInput && loginBtn) {
+        authPasswordInput.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                loginBtn.click();
+            }
+        });
+    }
+
+    // Autofocus email for faster login/registro
+    if (authEmailInput) {
+        try { authEmailInput.focus(); } catch (e) {}
+    }
 
     initPasswordToggles();
 
@@ -440,12 +516,36 @@ function resetBookingContext() {
 
 function initPasswordToggles() {
     document.querySelectorAll("[data-toggle-password]").forEach(toggle => {
-        const input = document.getElementById(toggle.dataset.togglePassword);
+        const targetId = toggle.dataset.togglePassword;
+        const input = document.getElementById(targetId);
         if (!input) return;
 
-        toggle.addEventListener("change", () => {
-            input.type = toggle.checked ? "text" : "password";
-        });
+        const handleToggle = () => {
+            const tag = toggle.tagName.toLowerCase();
+            if (tag === 'input' && toggle.type === 'checkbox') {
+                input.type = toggle.checked ? 'text' : 'password';
+                return;
+            }
+
+            const isVisible = input.type === 'text';
+            if (isVisible) {
+                input.type = 'password';
+                toggle.classList.remove('is-visible');
+                toggle.setAttribute('aria-pressed', 'false');
+                toggle.setAttribute('aria-label', 'Mostrar contraseña');
+            } else {
+                input.type = 'text';
+                toggle.classList.add('is-visible');
+                toggle.setAttribute('aria-pressed', 'true');
+                toggle.setAttribute('aria-label', 'Ocultar contraseña');
+            }
+        };
+
+        if (toggle.tagName.toLowerCase() === 'input' && toggle.type === 'checkbox') {
+            toggle.addEventListener('change', handleToggle);
+        } else {
+            toggle.addEventListener('click', handleToggle);
+        }
     });
 }
 
@@ -1092,15 +1192,19 @@ async function handleReviewSubmit(event) {
     }
 
     try {
+        const reviewerName = getValue('review-name') || state.user.displayName || state.user.email;
         await state.firestore.addDoc(state.firestore.collection(state.db, "reviews"), {
             uid: state.user.uid,
-            name: state.user.displayName || state.user.email,
+            name: reviewerName,
             stars: Number(getValue("review-stars")),
             text,
             approved: false,
             createdAt: state.firestore.serverTimestamp()
         });
         event.target.reset();
+        // Re-populate reviewer name after reset for convenience
+        const reviewNameInput = document.getElementById('review-name');
+        if (reviewNameInput) reviewNameInput.value = reviewerName;
         feedback.textContent = "Reseña enviada. Queda pendiente de aprobación.";
     } catch (error) {
         feedback.textContent = "No se pudo guardar la reseña.";
@@ -1133,6 +1237,11 @@ async function handleRegister() {
             createdAt: state.firestore.serverTimestamp()
         });
         feedback.textContent = "Cuenta creada. Ya podés dejar reseñas.";
+        // Hide name field after successful registration (UX: back to login compact state)
+        const nameLabel = document.querySelector('.auth-name-field');
+        if (nameLabel) nameLabel.hidden = true;
+        const registerBtn = document.getElementById('register-user-btn');
+        if (registerBtn) registerBtn.textContent = 'Registrarme';
     } catch (error) {
         feedback.textContent = getFirebaseMessage(error);
     }
@@ -1162,16 +1271,43 @@ function updateAuthUI(user) {
 
     if (!status) return;
 
+    const setInputValue = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val ?? "";
+    };
+
     if (user) {
         status.textContent = `Sesión iniciada como ${user.displayName || user.email}.`;
         logout.hidden = false;
         login.hidden = true;
         register.hidden = true;
+
+        // Autocompletar campos de reserva y reseña cuando el usuario está logueado
+        setInputValue('booking-name', user.displayName || '');
+        setInputValue('booking-email', user.email || '');
+        setInputValue('booking-phone', user.phoneNumber || '');
+        setInputValue('auth-name', user.displayName || '');
+        setInputValue('review-name', user.displayName || user.email || '');
+        // Persist minimal auth info for other pages (games) to detect logged user
+        try {
+            localStorage.setItem('authUser', JSON.stringify({
+                uid: user.uid,
+                email: user.email || null,
+                displayName: user.displayName || null,
+                phoneNumber: user.phoneNumber || null
+            }));
+        } catch (e) {
+            console.warn('No se pudo persistir authUser en localStorage', e);
+        }
     } else {
         status.textContent = "Creá una cuenta para dejar reseñas asociadas a tu usuario.";
         logout.hidden = true;
         login.hidden = false;
         register.hidden = false;
+
+        // Limpiar campos autocompletados para evitar datos obsoletos
+        setInputValue('review-name', '');
+        try { localStorage.removeItem('authUser'); } catch (e) {}
     }
 }
 

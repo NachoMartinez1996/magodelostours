@@ -2098,6 +2098,38 @@ body.tour-site {
     line-height: 1.55;
 }
 
+/* Inline password toggle (eye icon inside input) */
+.input-with-icon__wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.input-with-icon__wrap input[type="password"],
+.input-with-icon__wrap input[type="text"] {
+    width: 100%;
+    padding-right: 40px;
+}
+.password-toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    padding: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+    line-height: 0;
+    border-radius: 4px;
+}
+.password-toggle-btn svg { width: 20px; height: 20px; }
+.password-toggle-btn .eye-open { display: none; }
+.password-toggle-btn.is-visible .eye-open { display: inline; }
+.password-toggle-btn.is-visible .eye-closed { display: none; }
+
 .site-footer strong {
     color: #ffffff;
 }

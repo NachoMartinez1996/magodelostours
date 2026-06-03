@@ -24,6 +24,26 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header class="site-header games-header">
+        <a class="brand-mark" href="index.html" aria-label="El Mago de los Tours">
+            <img src="Logos/LogoGemini.png" alt="">
+            <span>
+                <strong>El Mago de los Tours</strong>
+                <small>Juegos</small>
+            </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Navegación principal">
+            <a href="index.html">Volver a tours</a>
+            <a href="juegos.html" class="is-active">Juegos</a>
+            <a href="index.html#perfil">Mi perfil</a>
+        </nav>
+
+        <div id="games-user" class="games-user">
+            <span id="games-user-name" class="games-user__name" aria-hidden="true"></span>
+            <button id="games-user-action" class="site-button site-button--small" type="button">Entrar</button>
+        </div>
+    </header>
     <main class="app-shell">
         <section class="hero">
             <p class="eyebrow">Experiencia interactiva</p>
@@ -103,6 +123,30 @@
                     </button>
                 </article>
             </div>
+
+            <!-- Leaderboards for games -->
+            <section class="site-section leaderboard-section" aria-labelledby="leaderboard-title">
+                <div class="section-heading">
+                    <h3 id="leaderboard-title">Tabla de posiciones</h3>
+                    <p class="site-eyebrow">Los mejores jugadores (se guarda solo si estás logueado)</p>
+                </div>
+                <div class="leaderboards-grid">
+                    <div class="leaderboard-card">
+                        <h4>Memoria (tiempo restante)</h4>
+                        <table id="leaderboard-memory" class="leaderboard-table">
+                            <thead><tr><th>#</th><th>Jugador</th><th>Tiempo (s)</th><th>Fecha</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="leaderboard-card">
+                        <h4>Desafío (aciertos)</h4>
+                        <table id="leaderboard-challenge" class="leaderboard-table">
+                            <thead><tr><th>#</th><th>Jugador</th><th>Aciertos</th><th>Fecha</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </section>
 
         <section id="memory-view" class="view" aria-labelledby="memory-title">

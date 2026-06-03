@@ -41,13 +41,22 @@
                     Email
                     <input id="admin-email" type="email" autocomplete="email" value="ignaciomartinez21@hotmail.com" required>
                 </label>
-                <label>
+                <label class="input-with-icon">
                     Contraseña
-                    <input id="admin-password" type="password" autocomplete="current-password" required>
-                </label>
-                <label class="checkbox-label password-toggle">
-                    <input type="checkbox" data-toggle-password="admin-password">
-                    Mostrar contraseña
+                    <div class="input-with-icon__wrap">
+                        <input id="admin-password" type="password" autocomplete="current-password" required>
+                        <button type="button" class="password-toggle-btn" data-toggle-password="admin-password" aria-pressed="false" aria-label="Mostrar contraseña">
+                            <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M1 1l22 22"></path>
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.2-3.01 3.66-5.42 6.53-6.66"></path>
+                                <path d="M9.88 9.88A3 3 0 0 0 14.12 14.12"></path>
+                            </svg>
+                            <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
                 </label>
                 <button class="site-button" type="submit">Ingresar</button>
                 <button class="site-button site-button--small site-button--light" id="admin-reset-password" type="button">Crear o recuperar contrase&ntilde;a</button>
