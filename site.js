@@ -1,6 +1,6 @@
 import { fallbackAgenda, fallbackReviews, firebaseConfig } from "./firebase-config.js";
 
-const WHATSAPP_PHONE = "5493413504208";
+const WHATSAPP_PHONE = "543413504208";
 const FIREBASE_VERSION = "12.14.0";
 const SHARE_URL = "https://nachomartinez1996.github.io/magodelostours/";
 const PRICE_BY_DURATION = {
@@ -251,11 +251,21 @@ function initForms() {
     });
 
     // Confirmation dialog buttons inside booking form
-    document.getElementById("booking-confirm-send")?.addEventListener("click", async () => {
-        const btn = document.getElementById("booking-confirm-send");
+    document.getElementById("booking-confirm-email")?.addEventListener("click", async () => {
+        const btn = document.getElementById("booking-confirm-email");
         if (btn) btn.disabled = true;
         try {
-            await submitPendingBooking();
+            await confirmReservationByEmail();
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    });
+
+    document.getElementById("booking-confirm-wa")?.addEventListener("click", async () => {
+        const btn = document.getElementById("booking-confirm-wa");
+        if (btn) btn.disabled = true;
+        try {
+            await confirmReservationByWhatsApp();
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -518,8 +528,9 @@ async function handleBookingSubmit(event) {
     setText("confirm-people", String(payload.people));
     setText("confirm-duration", payload.duration || "");
     if (priceDetails.pricePerPerson) {
-        setText("confirm-price-per", formatCurrency(priceDetails.pricePerPerson, priceDetails.currency || 'ARS'));
-        setText("confirm-price-total", formatCurrency(priceDetails.total, priceDetails.currency || 'ARS'));
+        const multi = buildMultiCurrencyDisplay(priceDetails, people);
+        setText("confirm-price-per", multi.perText);
+        setText("confirm-price-total", multi.totalText);
     } else {
         setText("confirm-price-per", priceDetails.label || "Precio a confirmar");
         setText("confirm-price-total", "");
@@ -602,6 +613,82 @@ async function submitPendingBooking() {
     } finally {
         pendingBooking = null;
     }
+}
+
+async function confirmReservationByEmail() {
+    if (!pendingBooking) return;
+    try {
+        await saveReservationLocal(pendingBooking);
+    } catch (e) {
+        console.warn('No se pudo guardar localmente antes de enviar por e-mail', e);
+    }
+
+    const ownerEmailAnchor = document.querySelector('a[href^="mailto:"]');
+    const ownerEmail = ownerEmailAnchor ? ownerEmailAnchor.href.replace(/^mailto:/, '') : 'ignaciomartinez21@hotmail.com';
+    const subject = `Confirmación reserva: ${pendingBooking.tour || 'Recorrido a confirmar'}`;
+    const priceLabel = pendingBooking.priceLabel || '';
+    const bodyLines = [
+        `Recorrido: ${pendingBooking.tour || 'Recorrido a confirmar'}`,
+        `Fecha tentativa: ${pendingBooking.date || 'A coordinar'}`,
+        `Personas: ${pendingBooking.people}`,
+        pendingBooking.duration ? `Duración: ${pendingBooking.duration}` : null,
+        priceLabel ? `Precio estimado: ${priceLabel}` : null,
+        `Nombre: ${pendingBooking.name}`,
+        `Email: ${pendingBooking.email}`,
+        `WhatsApp: ${pendingBooking.phone}`,
+        pendingBooking.message ? `Mensaje: ${pendingBooking.message}` : null
+    ].filter(Boolean);
+    const body = bodyLines.join('\n');
+
+    const mailto = `mailto:${ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailto, '_blank');
+
+    // Close booking modal and clear pending booking (no modal/panel shown)
+    try {
+        closeBookingModal();
+    } catch (e) {
+        console.warn('No se pudo cerrar el modal tras enviar por e-mail', e);
+    }
+    pendingBooking = null;
+}
+
+async function confirmReservationByWhatsApp() {
+    if (!pendingBooking) return;
+    try {
+        await saveReservationLocal(pendingBooking);
+    } catch (e) {
+        console.warn('No se pudo guardar localmente antes de enviar por WhatsApp', e);
+    }
+
+    const telAnchor = document.querySelector('a[href^="tel:"]');
+    let ownerTel = telAnchor ? telAnchor.href.replace(/^tel:/, '') : WHATSAPP_PHONE;
+    ownerTel = String(ownerTel).replace(/\D/g, '');
+    if (!ownerTel) ownerTel = WHATSAPP_PHONE;
+
+    const priceLabel = pendingBooking.priceLabel || '';
+    const bodyLines = [
+        `Recorrido: ${pendingBooking.tour || 'Recorrido a confirmar'}`,
+        `Fecha tentativa: ${pendingBooking.date || 'A coordinar'}`,
+        `Personas: ${pendingBooking.people}`,
+        pendingBooking.duration ? `Duración: ${pendingBooking.duration}` : null,
+        priceLabel ? `Precio estimado: ${priceLabel}` : null,
+        `Nombre: ${pendingBooking.name}`,
+        `Email: ${pendingBooking.email}`,
+        `WhatsApp: ${pendingBooking.phone}`,
+        pendingBooking.message ? `Mensaje: ${pendingBooking.message}` : null
+    ].filter(Boolean);
+    const body = bodyLines.join('\n');
+
+    const waUrl = `https://wa.me/${ownerTel}?text=${encodeURIComponent('Hola Ignacio, quiero coordinar la reserva.\n' + body)}`;
+    window.open(waUrl, '_blank');
+
+    // Close booking modal and clear pending booking (no modal/panel shown)
+    try {
+        closeBookingModal();
+    } catch (e) {
+        console.warn('No se pudo cerrar el modal tras enviar por WhatsApp', e);
+    }
+    pendingBooking = null;
 }
 
 // --- Local storage / IndexedDB helpers for reservations ---
@@ -793,13 +880,77 @@ function parsePriceNumber(str) {
         return `${num} ${currency}`;
     }
 
+        function getImpliedExchangeRates() {
+            const usdRatios = [];
+            const eurRatios = [];
+            for (const k in PRICE_BY_DURATION) {
+                const p = PRICE_BY_DURATION[k];
+                if (p && p.ars && p.usd) usdRatios.push(p.ars / p.usd);
+                if (p && p.ars && p.eur) eurRatios.push(p.ars / p.eur);
+            }
+            const avg = arr => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+            return { usdARS: avg(usdRatios), eurARS: avg(eurRatios) };
+        }
+
+        function roundTo(value, digits = 2) {
+            if (value == null || Number.isNaN(value)) return null;
+            const factor = Math.pow(10, digits);
+            return Math.round(value * factor) / factor;
+        }
+
+        function buildMultiCurrencyDisplay(details, people = 1) {
+            const durationSelect = document.getElementById('booking-duration');
+            const durationVal = durationSelect?.value || "";
+            let perARS = null, perUSD = null, perEUR = null;
+
+            if (durationVal && PRICE_BY_DURATION[durationVal]) {
+                const m = PRICE_BY_DURATION[durationVal];
+                perARS = m.ars;
+                perUSD = m.usd;
+                perEUR = m.eur;
+            } else {
+                const implied = getImpliedExchangeRates();
+                const currency = details.currency || 'ARS';
+                const base = details.pricePerPerson;
+                if (currency === 'ARS') {
+                    perARS = base;
+                    perUSD = implied.usdARS ? base / implied.usdARS : null;
+                    perEUR = implied.eurARS ? base / implied.eurARS : null;
+                } else if (currency === 'USD') {
+                    perUSD = base;
+                    perARS = implied.usdARS ? base * implied.usdARS : null;
+                    perEUR = (perARS && implied.eurARS) ? perARS / implied.eurARS : null;
+                } else if (currency === 'EUR') {
+                    perEUR = base;
+                    perARS = implied.eurARS ? base * implied.eurARS : null;
+                    perUSD = (perARS && implied.usdARS) ? perARS / implied.usdARS : null;
+                }
+            }
+
+            const totalARS = perARS != null ? perARS * people : null;
+            const totalUSD = perUSD != null ? perUSD * people : null;
+            const totalEUR = perEUR != null ? perEUR * people : null;
+
+            const perARSf = perARS != null ? formatCurrency(Math.round(perARS), 'ARS') : '';
+            const perUSDf = perUSD != null ? formatCurrency(roundTo(perUSD, 2), 'USD') : '';
+            const perEURf = perEUR != null ? formatCurrency(roundTo(perEUR, 2), 'EUR') : '';
+            const totalARSf = totalARS != null ? formatCurrency(Math.round(totalARS), 'ARS') : '';
+            const totalUSDf = totalUSD != null ? formatCurrency(roundTo(totalUSD, 2), 'USD') : '';
+            const totalEURf = totalEUR != null ? formatCurrency(roundTo(totalEUR, 2), 'EUR') : '';
+
+            return {
+                perText: `ARS: ${perARSf} · USD: ${perUSDf} · EUR: ${perEURf}`,
+                totalText: `ARS: ${totalARSf} · USD: ${totalUSDf} · EUR: ${totalEURf}`,
+                perHtml: `<strong>Precio por persona:</strong> ${perARSf} · ${perUSDf} · ${perEURf}`,
+                totalHtml: `<strong>Total estimado:</strong> ${totalARSf} · ${totalUSDf} · ${totalEURf}`
+            };
+        }
+
 function updateBookingPriceUI(priceRaw) {
         const display = document.getElementById("booking-price-display");
         const priceInput = document.getElementById("booking-price");
-        const peopleSelect = document.getElementById("booking-people");
 
         if (!display) return;
-        // If no explicit priceRaw provided, try to compute from duration or inputs
         const details = getBookingPriceDetails();
         if (!details.pricePerPerson) {
             display.hidden = true;
@@ -807,9 +958,10 @@ function updateBookingPriceUI(priceRaw) {
             return;
         }
 
-        const perPerson = formatCurrency(details.pricePerPerson, details.currency || 'ARS');
-        const total = formatCurrency(details.total, details.currency || 'ARS');
-        display.textContent = `Precio por persona: ${perPerson}. Total estimado: ${total}.`;
+        const people = Math.max(1, Number(getValue("booking-people") || 1));
+        const multi = buildMultiCurrencyDisplay(details, people);
+        // Use HTML in the form hint (safe content built from known values)
+        display.innerHTML = `${multi.perHtml}<br>${multi.totalHtml}`;
         display.hidden = false;
     }
 
