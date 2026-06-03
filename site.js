@@ -471,7 +471,7 @@ async function handleBookingSubmit(event) {
         duration: getValue("booking-duration"),
         paymentMethod: getValue("booking-payment"),
         paymentAlias: getValue("booking-payment") === "transfer" ? "magonacho" : "",
-        meetingDelivery: getValue("booking-payment") === "cash" ? "visible_in_form" : "after_receipt",
+        meetingDelivery: "after_receipt",
         pricePerPerson: priceDetails.pricePerPerson,
         priceTotal: priceDetails.total,
         priceLabel: priceDetails.label,
@@ -616,10 +616,10 @@ function updatePaymentInfo() {
         return;
     }
 
-    if (paymentMethod === "cash") {
-        message.textContent = `Pago en efectivo: abonás en el momento del tour. Punto de encuentro: ${meeting}.`;
-        receiptLink.hidden = true;
-    } else {
+        if (paymentMethod === "cash") {
+            message.textContent = `Pago en efectivo: abonás en el momento del tour. El punto de encuentro se confirmará luego de enviar la reserva.`;
+            receiptLink.hidden = true;
+        } else {
         message.textContent = `Pago por transferencia: alias magonacho. Enviame el comprobante por WhatsApp y después te confirmo el punto de encuentro. ${priceDetails.label}.`;
         const receiptText = [
             "Hola Ignacio, te envío el comprobante de la reserva.",
