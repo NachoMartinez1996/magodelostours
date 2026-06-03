@@ -227,9 +227,15 @@ function initForms() {
     paymentSelect?.addEventListener("change", updatePaymentInfo);
 
     document.getElementById("booking-modal-close")?.addEventListener("click", closeBookingModal);
-    document.getElementById("booking-modal-backdrop")?.addEventListener("click", closeBookingModal);
+    document.getElementById("booking-modal-backdrop")?.addEventListener("click", () => {
+        closeBookingModal();
+        closeLocalReservationsModal();
+    });
     window.addEventListener("keydown", event => {
-        if (event.key === "Escape") closeBookingModal();
+        if (event.key === "Escape") {
+            closeBookingModal();
+            closeLocalReservationsModal();
+        }
     });
 
     // Build map of tours (title -> description, duration) from the Recorridos cards
@@ -260,6 +266,20 @@ function initForms() {
         const conf = document.getElementById("booking-confirmation");
         if (conf) conf.hidden = true;
         if (fields) fields.hidden = false;
+    });
+    // Close the 'sent' panel inside modal when user clicks close
+    document.getElementById("booking-sent-close")?.addEventListener("click", () => {
+        const sent = document.getElementById("booking-sent");
+        if (sent) sent.hidden = true;
+        resetBookingContext();
+        closeBookingModal();
+    });
+    // Open local reservations listing (owner)
+    document.getElementById("view-local-reservations")?.addEventListener("click", () => {
+        openLocalReservationsModal();
+    });
+    document.getElementById("local-reservations-close")?.addEventListener("click", () => {
+        closeLocalReservationsModal();
     });
 }
 
@@ -402,6 +422,10 @@ function resetBookingContext() {
     // ensure confirmation block hidden when resetting
     const conf = document.getElementById("booking-confirmation");
     if (conf) conf.hidden = true;
+
+    // ensure sent panel hidden when resetting
+    const sent = document.getElementById("booking-sent");
+    if (sent) sent.hidden = true;
 }
 
 function initPasswordToggles() {
@@ -469,8 +493,8 @@ async function handleBookingSubmit(event) {
         date: getValue("booking-date") || "A coordinar",
         people,
         duration: getValue("booking-duration"),
-        paymentMethod: getValue("booking-payment"),
-        paymentAlias: getValue("booking-payment") === "transfer" ? "magonacho" : "",
+        paymentMethod: "to_coord",
+        paymentAlias: "",
         meetingDelivery: "after_receipt",
         pricePerPerson: priceDetails.pricePerPerson,
         priceTotal: priceDetails.total,
@@ -480,8 +504,8 @@ async function handleBookingSubmit(event) {
         uid: state.user?.uid || null
     };
 
-    if (!payload.name || !payload.email || !payload.phone || !payload.paymentMethod) {
-        feedback.textContent = "Completá nombre, email, WhatsApp y forma de pago.";
+    if (!payload.name || !payload.email || !payload.phone) {
+        feedback.textContent = "Completá nombre, email y WhatsApp.";
         return;
     }
 
@@ -515,37 +539,228 @@ async function handleBookingSubmit(event) {
 async function submitPendingBooking() {
     if (!pendingBooking) return;
     const feedback = document.getElementById("form-feedback");
-    feedback.textContent = "Enviando reserva...";
+    feedback.textContent = "Procesando reserva...";
 
     try {
-        if (!state.firebaseReady) {
-            feedback.textContent = "No se pudo enviar la reserva porque Firebase no está disponible ahora. Probá de nuevo en unos minutos.";
-            return;
+        // Save reservation locally (IndexedDB preferred, fallback to localStorage)
+        try {
+            await saveReservationLocal(pendingBooking);
+        } catch (e) {
+            console.warn("No se pudo guardar la reserva localmente.", e);
         }
 
-        await state.firestore.addDoc(state.firestore.collection(state.db, "registrations"), {
-            ...pendingBooking,
-            status: "pending",
-            createdAt: state.firestore.serverTimestamp()
-        });
+        // Prepare UI for coordination by email/WhatsApp
+        const meetingPoint = pendingBooking.meeting || "Punto de encuentro a confirmar";
+        feedback.textContent = "Reserva preparada. Podés enviarme un e-mail o un mensaje por WhatsApp para coordinar fecha, horario y forma de pago.";
 
-        if (pendingBooking.agendaId && state.user) {
-            await reserveAgendaSpots(pendingBooking.agendaId, pendingBooking.people);
+        const conf = document.getElementById("booking-confirmation");
+        const sent = document.getElementById("booking-sent");
+        if (conf) conf.hidden = true;
+        if (sent) {
+            setText("sent-message", "Reserva preparada. Podés enviarme un e-mail o un mensaje por WhatsApp para coordinar fecha, horario y forma de pago.");
+            const meetingSpan = document.getElementById("sent-meeting-point");
+            if (meetingSpan) meetingSpan.textContent = meetingPoint;
+            const sentMeeting = document.getElementById("sent-meeting");
+            if (sentMeeting) sentMeeting.hidden = false;
+
+            // Prepare contact links (mailto from page and WhatsApp)
+            const ownerEmailAnchor = document.querySelector('a[href^="mailto:"]');
+            const ownerEmail = ownerEmailAnchor ? ownerEmailAnchor.href.replace(/^mailto:/, '') : '';
+            const emailAnchor = document.getElementById('booking-sent-email');
+            const waAnchor = document.getElementById('booking-sent-wa');
+
+            const subject = `Coordinación reserva: ${pendingBooking.tour || 'Recorrido a confirmar'}`;
+            const bodyLines = [
+                `Recorrido: ${pendingBooking.tour || 'Recorrido a confirmar'}`,
+                `Fecha tentativa: ${pendingBooking.date || 'A coordinar'}`,
+                `Personas: ${pendingBooking.people}`,
+                `Nombre: ${pendingBooking.name}`,
+                `WhatsApp: ${pendingBooking.phone}`,
+                `Mensaje: ${pendingBooking.message || ''}`,
+                `Punto de encuentro: ${meetingPoint}`
+            ];
+            const body = bodyLines.join('\n');
+
+            if (emailAnchor && ownerEmail) {
+                emailAnchor.href = `mailto:${ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                emailAnchor.hidden = false;
+            } else if (emailAnchor) {
+                emailAnchor.hidden = true;
+            }
+
+            if (waAnchor) {
+                const waUrl = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent('Hola Ignacio, quiero coordinar la reserva.\n' + body)}`;
+                waAnchor.href = waUrl;
+                waAnchor.hidden = false;
+            }
+
+            sent.hidden = false;
         }
-
-        feedback.textContent = pendingBooking.paymentMethod === "transfer"
-            ? "Reserva enviada. Enviame el comprobante por WhatsApp y te confirmo el punto de encuentro."
-            : "Reserva enviada. Te espero con pago en efectivo en el punto indicado.";
-
-        // Close modal and reset
-        resetBookingContext();
-        closeBookingModal();
     } catch (error) {
-        console.warn("No se pudo guardar la reserva en Firebase.", error);
-        feedback.textContent = "No se pudo guardar la reserva. Probá de nuevo en unos minutos.";
+        console.warn("Error al procesar la reserva localmente.", error);
+        feedback.textContent = "No se pudo procesar la reserva. Probá de nuevo.";
     } finally {
         pendingBooking = null;
     }
+}
+
+// --- Local storage / IndexedDB helpers for reservations ---
+function openLocalDB() {
+    return new Promise(resolve => {
+        if (!('indexedDB' in window)) return resolve(null);
+        const req = indexedDB.open('magodelostours', 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('reservations')) {
+                db.createObjectStore('reservations', { keyPath: 'id' });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+    });
+}
+
+async function saveReservationLocal(reservation) {
+    const record = Object.assign({}, reservation, {
+        id: reservation.id || (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)),
+        savedAt: new Date().toISOString()
+    });
+
+    const db = await openLocalDB();
+    if (db) {
+        return new Promise((resolve, reject) => {
+            try {
+                const tx = db.transaction('reservations', 'readwrite');
+                const store = tx.objectStore('reservations');
+                store.put(record);
+                tx.oncomplete = () => {
+                    db.close();
+                    resolve(record.id);
+                };
+                tx.onerror = () => {
+                    db.close();
+                    reject(tx.error);
+                };
+            } catch (e) {
+                try { db.close(); } catch (er) {}
+                reject(e);
+            }
+        });
+    }
+
+    // fallback to localStorage
+    try {
+        const key = 'magodelostours_reservations';
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        list.push(record);
+        localStorage.setItem(key, JSON.stringify(list));
+        return record.id;
+    } catch (e) {
+        throw e;
+    }
+}
+
+async function getLocalReservations() {
+    const db = await openLocalDB();
+    if (db) {
+        return new Promise(resolve => {
+            try {
+                const tx = db.transaction('reservations', 'readonly');
+                const store = tx.objectStore('reservations');
+                const req = store.getAll();
+                req.onsuccess = () => {
+                    db.close();
+                    resolve(req.result || []);
+                };
+                req.onerror = () => {
+                    db.close();
+                    resolve([]);
+                };
+            } catch (e) {
+                try { db.close(); } catch (er) {}
+                resolve([]);
+            }
+        });
+    }
+    try {
+        const key = 'magodelostours_reservations';
+        return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch (e) {
+        return [];
+    }
+}
+
+async function deleteLocalReservation(id) {
+    const db = await openLocalDB();
+    if (db) {
+        return new Promise((resolve, reject) => {
+            try {
+                const tx = db.transaction('reservations', 'readwrite');
+                const store = tx.objectStore('reservations');
+                store.delete(id);
+                tx.oncomplete = () => { db.close(); resolve(); };
+                tx.onerror = () => { db.close(); reject(tx.error); };
+            } catch (e) { try { db.close(); } catch (er) {} ; reject(e); }
+        });
+    }
+    try {
+        const key = 'magodelostours_reservations';
+        const list = JSON.parse(localStorage.getItem(key) || '[]');
+        const filtered = list.filter(r => r.id !== id);
+        localStorage.setItem(key, JSON.stringify(filtered));
+    } catch (e) {}
+}
+
+function openLocalReservationsModal() {
+    const modal = document.getElementById('local-reservations-modal');
+    const backdrop = document.getElementById('booking-modal-backdrop');
+    if (!modal || !backdrop) return;
+    backdrop.hidden = false;
+    modal.hidden = false;
+    document.body.classList.add('booking-modal-open');
+    populateLocalReservations();
+}
+
+function closeLocalReservationsModal() {
+    const modal = document.getElementById('local-reservations-modal');
+    const backdrop = document.getElementById('booking-modal-backdrop');
+    if (!modal || !backdrop || modal.hidden) return;
+    modal.hidden = true;
+    backdrop.hidden = true;
+    document.body.classList.remove('booking-modal-open');
+}
+
+async function populateLocalReservations() {
+    const listEl = document.getElementById('local-reservations-list');
+    if (!listEl) return;
+    const items = await getLocalReservations();
+    if (!items || !items.length) {
+        listEl.innerHTML = '<p>No hay reservas guardadas en este dispositivo.</p>';
+        return;
+    }
+    listEl.innerHTML = items.map(item => {
+        return `
+            <article class="agenda-card">
+                <h4>${escapeHtml(item.tour || 'Recorrido a confirmar')}</h4>
+                <div><strong>Nombre:</strong> ${escapeHtml(item.name || '')}</div>
+                <div><strong>WhatsApp:</strong> ${escapeHtml(item.phone || '')}</div>
+                <div><strong>Fecha tentativa:</strong> ${escapeHtml(item.date || '')}</div>
+                <div><strong>Personas:</strong> ${escapeHtml(String(item.people || ''))}</div>
+                <div><strong>Guardada:</strong> ${escapeHtml(String(item.savedAt || ''))}</div>
+                <div class="button-row">
+                    <button class="site-button site-button--small" data-delete-reservation="${escapeHtml(item.id)}">Eliminar</button>
+                </div>
+            </article>
+        `;
+    }).join('');
+
+    listEl.querySelectorAll('[data-delete-reservation]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.deleteReservation;
+            await deleteLocalReservation(id);
+            populateLocalReservations();
+        });
+    });
 }
 
 function parsePriceNumber(str) {

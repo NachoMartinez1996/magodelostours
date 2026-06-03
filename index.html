@@ -318,18 +318,6 @@
                             </label>
                             <p id="booking-price-display" class="form-hint" hidden></p>
                             <label>
-                                Forma de pago
-                                <select id="booking-payment" name="payment" required>
-                                    <option value="">Elegí cómo vas a pagar</option>
-                                    <option value="cash">Efectivo al momento del tour</option>
-                                    <option value="transfer">Transferencia</option>
-                                </select>
-                            </label>
-                            <div class="payment-choice-panel" id="booking-payment-info" hidden>
-                                <p id="booking-payment-message"></p>
-                                <a class="site-button site-button--small" id="booking-receipt-link" href="https://wa.me/5493413504208?text=Hola%20Ignacio%2C%20te%20env%C3%ADo%20el%20comprobante%20de%20la%20reserva." target="_blank" rel="noopener" hidden>Enviar comprobante por WhatsApp</a>
-                            </div>
-                            <label>
                                 Mensaje
                                 <textarea id="booking-message" name="message" rows="4" placeholder="Contame si querés una fecha especial o un tema puntual."></textarea>
                             </label>
@@ -359,6 +347,18 @@
                             </div>
                         </div>
                         </div>
+
+                        <!-- Envío: mensaje posterior al envío (se muestra tras confirmar) -->
+                        <div id="booking-sent" hidden>
+                            <h4>Reserva enviada</h4>
+                            <p id="sent-message">Gracias, tu reserva fue enviada.</p>
+                            <p id="sent-meeting" hidden><strong>Punto de encuentro:</strong> <span id="sent-meeting-point"></span></p>
+                            <div class="form-row">
+                                <a class="site-button" id="booking-sent-email" href="#" target="_blank" rel="noopener" hidden>Enviar e-mail</a>
+                                <a class="site-button" id="booking-sent-wa" href="#" target="_blank" rel="noopener" hidden>Enviar WhatsApp</a>
+                                <button type="button" class="site-button" id="booking-sent-close">Cerrar</button>
+                            </div>
+                        </div>
                     </form>
 
                     <article class="deposit-card">
@@ -366,9 +366,17 @@
                         <h3>Abonar seña</h3>
                         <p id="payment-details">Para pagos digitales, el alias es magonacho. Enviame el comprobante por WhatsApp y te confirmo el punto de encuentro.</p>
                         <a class="site-button site-button--small" id="payment-link" href="https://wa.me/5493413504208?text=Hola%20Ignacio%2C%20te%20env%C3%ADo%20el%20comprobante%20de%20la%20reserva." target="_blank" rel="noopener">Enviar comprobante</a>
+                            <button class="site-button site-button--small" id="view-local-reservations" type="button">Ver reservas locales</button>
                     </article>
                 </div>
             </section>
+            <!-- Modal: listado de reservas guardadas localmente -->
+            <div class="booking-modal-form" id="local-reservations-modal" hidden>
+                <button class="modal-close" id="local-reservations-close" type="button" aria-label="Cerrar">&times;</button>
+                <p class="site-eyebrow">Reservas locales</p>
+                <h3>Reservas guardadas en este dispositivo</h3>
+                <div id="local-reservations-list" class="stacked-panel"></div>
+            </div>
         </div>
 
         <div class="page-view" id="view-comunidad" data-view="comunidad">
