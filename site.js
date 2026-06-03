@@ -480,15 +480,15 @@ async function handleBookingSubmit(event) {
         uid: state.user?.uid || null
     };
 
-    if (!payload.name || !payload.email || !payload.phone || !payload.tour || !payload.paymentMethod) {
-        feedback.textContent = "Completá nombre, email, WhatsApp, recorrido y forma de pago.";
+    if (!payload.name || !payload.email || !payload.phone || !payload.paymentMethod) {
+        feedback.textContent = "Completá nombre, email, WhatsApp y forma de pago.";
         return;
     }
 
     // Save pending booking and show confirmation summary inside modal
     pendingBooking = payload;
 
-    setText("confirm-tour", payload.tour);
+    setText("confirm-tour", payload.tour || "Recorrido a confirmar");
     setText("confirm-description", toursMap[payload.tour]?.description || "");
     setText("confirm-date", payload.date || "A coordinar");
     setText("confirm-people", String(payload.people));
