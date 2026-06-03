@@ -367,6 +367,8 @@ function subscribeRegistrations() {
                 <span>${escapeHtml(data.email || "")} · ${escapeHtml(data.phone || "")}</span>
                 <span>${escapeHtml(data.date || "")} · ${escapeHtml(data.people || "")} · ${escapeHtml(data.duration || "")}</span>
                 <span>${escapeHtml(data.priceLabel || "Precio a confirmar")} · ${escapeHtml(data.source || "recorrido")}</span>
+                <span>${escapeHtml(paymentLabel(data.paymentMethod))}${data.paymentAlias ? ` · Alias: ${escapeHtml(data.paymentAlias)}` : ""}</span>
+                <span>Punto interno: ${escapeHtml(data.meeting || "a confirmar")}</span>
                 <em>${escapeHtml(data.status || "pending")}</em>
             `);
             card.appendChild(actionButton("Confirmar", () => runAdminAction(
@@ -467,6 +469,12 @@ function normalizeEmail(value) {
 function parseCsvBoolean(value) {
     const normalized = String(value || "").trim().toLowerCase();
     return !["false", "falso", "0", "no", "oculto", "oculta"].includes(normalized);
+}
+
+function paymentLabel(value) {
+    if (value === "cash") return "Pago: efectivo";
+    if (value === "transfer") return "Pago: transferencia";
+    return "Pago: no especificado";
 }
 
 function setText(id, value) {

@@ -1,4 +1,4 @@
-const VERSION_CACHE = "1.6.00";
+const VERSION_CACHE = "1.8.00";
 const CACHE_SHELL = `rosario-shell-${VERSION_CACHE}`;
 const CACHE_RUNTIME = `rosario-runtime-${VERSION_CACHE}`;
 const HOME_SHELL = "./index.html";
@@ -16,26 +16,15 @@ const shellFiles = [
     "./admin.js",
     "./firebase-config.js",
     "./manifest.json",
+    "./share-qr.svg",
     "./Favicon/favicon.ico",
     "./Favicon/favicon-32x32.png",
     "./Favicon/favicon-16x16.png",
     "./Favicon/apple-icon-180x180.png",
     "./Favicon/android-icon-192x192.png",
-    "./android-chrome-512x512.png",
-    "./Logo.png",
+    "./Favicon/android-icon-512x512.png",
     "./Logos/LogoGemini.png",
-    "./castagnino.jpg",
-    "./catedral.jpg",
-    "./coloso.jpg",
-    "./elcirculo.png",
-    "./escarapela.png",
-    "./estevez.jpg",
-    "./gigante.png",
-    "./helado.jpg",
-    "./independencia.jpg",
-    "./monumento.jpg",
-    "./puente.jpg",
-    "./urquiza.jpg"
+    "./Fotos%20sobre%20m%C3%AD/photo_2026-06-01_16-43-19.jpg"
 ];
 
 function isUpdatableResource(request) {
@@ -54,7 +43,8 @@ function isUpdatableResource(request) {
         path.endsWith("/admin.js") ||
         path.endsWith("/firebase-config.js") ||
         path.endsWith("/style.css") ||
-        path.endsWith("/manifest.json")
+        path.endsWith("/manifest.json") ||
+        path.endsWith("/share-qr.svg")
     );
 }
 
@@ -74,7 +64,8 @@ function getTargetCache(request) {
         path.endsWith("/admin.js") ||
         path.endsWith("/firebase-config.js") ||
         path.endsWith("/style.css") ||
-        path.endsWith("/manifest.json")
+        path.endsWith("/manifest.json") ||
+        path.endsWith("/share-qr.svg")
     ) {
         return CACHE_SHELL;
     }

@@ -1516,7 +1516,8 @@ body.tour-site {
 .price-panel h3,
 .deposit-card h3,
 .booking-form h3,
-.map-list h3 {
+.map-list h3,
+.share-card h3 {
     margin: 0;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(1.5rem, 3vw, 2rem);
@@ -1864,6 +1865,70 @@ body.tour-site {
     border: 1px solid rgba(11, 94, 168, 0.14);
 }
 
+.share-section {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(300px, 0.8fr);
+    gap: clamp(24px, 5vw, 58px);
+    align-items: start;
+    padding-bottom: 72px;
+}
+
+.share-card {
+    display: grid;
+    gap: 16px;
+    padding: clamp(18px, 3vw, 28px);
+    border-radius: 24px;
+    border: 1px solid rgba(20, 50, 74, 0.12);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+}
+
+.share-qr-frame {
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    border-radius: 22px;
+    background: #fffaf0;
+    border: 1px solid rgba(20, 50, 74, 0.12);
+}
+
+.share-qr-frame img {
+    display: block;
+    width: min(100%, 260px);
+    aspect-ratio: 1;
+}
+
+.share-card label {
+    display: grid;
+    gap: 8px;
+    color: var(--ink-muted);
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.share-card input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(20, 50, 74, 0.16);
+    border-radius: 16px;
+    background: var(--bg-soft);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.95rem;
+    letter-spacing: 0;
+    text-transform: none;
+    padding: 13px 14px;
+    outline: none;
+}
+
+.share-card input:focus {
+    border-color: rgba(11, 94, 168, 0.5);
+    box-shadow: 0 0 0 4px rgba(11, 94, 168, 0.1);
+}
+
 .booking-form {
     display: grid;
     gap: 14px;
@@ -1946,6 +2011,27 @@ body.tour-site {
     color: rgba(20, 50, 74, 0.72);
     font-size: 0.95rem;
     line-height: 1.45;
+}
+
+.payment-choice-panel {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(11, 94, 168, 0.18);
+    background: rgba(251, 244, 222, 0.72);
+}
+
+.payment-choice-panel[hidden] {
+    display: none;
+}
+
+.payment-choice-panel p,
+.map-list p,
+.share-card p {
+    margin: 0;
+    color: var(--ink-muted);
+    line-height: 1.55;
 }
 
 .booking-modal-backdrop {
@@ -2105,6 +2191,7 @@ body.tour-site {
     .intro-section,
     .info-section,
     .contact-section,
+    .share-section,
     .split-section,
     .admin-grid {
         grid-template-columns: 1fr;
@@ -2205,6 +2292,7 @@ body.tour-site {
 
     .tour-card,
     .booking-form,
+    .share-card,
     .portrait-frame,
     .faq-list details {
         border-radius: 20px;
