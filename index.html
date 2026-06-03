@@ -37,6 +37,11 @@
             <a href="#contacto" data-view-link="contacto">Contacto</a>
         </nav>
 
+        <a class="header-user-chip" href="#perfil" data-view-link="perfil" id="header-user-chip" hidden aria-label="Ir a mi perfil">
+            <span class="header-user-chip__avatar" id="header-user-avatar"></span>
+            <span class="header-user-chip__name" id="header-user-name"></span>
+        </a>
+
         <a class="site-button site-button--small" href="https://wa.me/5493413504208?text=Hola%20Ignacio%2C%20quiero%20consultar%20por%20un%20recorrido%20guiado%20en%20Rosario." target="_blank" rel="noopener">
             WhatsApp
         </a>
@@ -118,7 +123,7 @@
                         <div class="tour-card__body">
                             <p class="tour-card__tag">Fútbol y barrio</p>
                             <h3>Carbonero de Ilusiones</h3>
-                            <p>El recorrido natal por el barrio de Ángel Di María: infancia, club, pertenencia y sueños que salieron de Rosario al mundo.</p>
+                            <p>El recorrido natal por el barrio de Angelito Di María: infancia, club, pertenencia y sueños que salieron de Rosario al mundo.</p>
                             <span>Tiempo estimado: una hora</span>
                             <div class="tour-card__actions">
                                 <button class="site-button site-button--small" type="button" data-reserve-tour="Carbonero de Ilusiones" data-tour-meeting="Cavia y Baigorria">Reservar</button>
@@ -144,7 +149,7 @@
                         <div class="tour-card__body">
                             <p class="tour-card__tag">Fútbol y origen</p>
                             <h3>De La Bajada al Olimpo</h3>
-                            <p>Recorrido por el barrio natal de Lionel Messi, entre relatos de infancia, potrero, club y memoria popular.</p>
+                            <p>Recorrido por el barrio natal de Lio Messi, entre relatos de infancia, potrero, club y memoria popular.</p>
                             <span>Tiempo estimado: dos horas</span>
                             <div class="tour-card__actions">
                                 <button class="site-button site-button--small" type="button" data-reserve-tour="De La Bajada al Olimpo" data-tour-meeting="Ayacucho 4800">Reservar</button>
@@ -461,44 +466,157 @@
             </section>
         </div>
 
-        <!-- Perfil: vista dedicada para registro y login -->
+        <!-- Perfil: sistema de usuarios -->
         <div class="page-view" id="view-perfil" data-view="perfil">
-            <section class="site-section split-section">
-                <div class="booking-form auth-card">
-                    <p class="site-eyebrow">Mi perfil</p>
-                    <h3>Registro y acceso</h3>
-                    <p id="auth-status">Iniciá sesión o creá una cuenta para autocompletar reservas.</p>
-                    <div class="form-row">
-                        <label class="auth-name-field" hidden>
-                            Nombre
-                            <input id="auth-name" type="text" autocomplete="name">
-                        </label>
-                        <label>
-                            Email
-                            <input id="auth-email" type="email" autocomplete="email">
-                        </label>
+            <section class="site-section profile-hub">
+                <div id="auth-guest-panel" class="profile-guest">
+                    <div class="profile-guest__intro">
+                        <p class="site-eyebrow">Mi cuenta</p>
+                        <h2>Tu espacio en El Mago de los Tours</h2>
+                        <p>
+                            Creá tu perfil para reservar más rápido, seguir tus salidas y dejar reseñas
+                            vinculadas a tu nombre. Todo sincronizado con Firebase.
+                        </p>
+                        <ul class="profile-benefits">
+                            <li>Autocompletado en reservas y reseñas</li>
+                            <li>Historial de salidas confirmadas</li>
+                            <li>Estado de tus opiniones en la comunidad</li>
+                            <li>Puntajes de juegos asociados a tu cuenta</li>
+                        </ul>
                     </div>
-                    <label class="input-with-icon">
-                        Contraseña
-                        <div class="input-with-icon__wrap">
-                            <input id="auth-password" type="password" autocomplete="current-password">
-                            <button type="button" class="password-toggle-btn" data-toggle-password="auth-password" aria-pressed="false" aria-label="Mostrar contraseña">
-                                <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M1 1l22 22"></path>
-                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.2-3.01 3.66-5.42 6.53-6.66"></path>
-                                    <path d="M9.88 9.88A3 3 0 0 0 14.12 14.12"></path>
-                                </svg>
-                                <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                            </button>
+
+                    <div class="auth-card auth-card--premium">
+                        <div class="auth-tabs" role="tablist" aria-label="Acceso a la cuenta">
+                            <button type="button" class="auth-tabs__btn is-active" data-auth-tab="login" role="tab" aria-selected="true">Ingresar</button>
+                            <button type="button" class="auth-tabs__btn" data-auth-tab="register" role="tab" aria-selected="false">Crear cuenta</button>
                         </div>
-                    </label>
-                    <div class="button-row">
-                        <button class="site-button site-button--small" type="button" id="register-user-btn">Registrarme</button>
-                        <button class="site-button site-button--small site-button--light" type="button" id="login-user-btn">Ingresar</button>
-                        <button class="site-button site-button--small site-button--light" type="button" id="logout-user-btn" hidden>Salir</button>
+
+                        <button type="button" class="auth-google-btn" id="google-signin-btn">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                            Continuar con Google
+                        </button>
+
+                        <p class="auth-divider" aria-hidden="true"><span>o con email</span></p>
+
+                        <form id="auth-form" class="auth-form">
+                            <label class="auth-name-field" hidden>
+                                Nombre completo
+                                <input id="auth-name" type="text" autocomplete="name">
+                            </label>
+                            <label>
+                                Email
+                                <input id="auth-email" type="email" autocomplete="email" required>
+                            </label>
+                            <label class="input-with-icon">
+                                Contraseña
+                                <div class="input-with-icon__wrap">
+                                    <input id="auth-password" type="password" autocomplete="current-password" required minlength="6">
+                                    <button type="button" class="password-toggle-btn" data-toggle-password="auth-password" aria-pressed="false" aria-label="Mostrar contraseña">
+                                        <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M1 1l22 22"></path>
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-5 0-9.27-3.11-11-8 1.2-3.01 3.66-5.42 6.53-6.66"></path>
+                                            <path d="M9.88 9.88A3 3 0 0 0 14.12 14.12"></path>
+                                        </svg>
+                                        <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </label>
+                            <div class="password-strength" id="password-strength" hidden aria-live="polite">
+                                <div class="password-strength__bar"><span></span></div>
+                                <span class="password-strength__label"></span>
+                            </div>
+                            <p class="form-feedback auth-feedback" id="auth-status" aria-live="polite"></p>
+                            <button class="site-button auth-submit-btn" type="submit" id="auth-submit-btn">Ingresar</button>
+                        </form>
+
+                        <button type="button" class="auth-forgot-link" id="auth-forgot-btn">¿Olvidaste tu contraseña?</button>
+                    </div>
+                </div>
+
+                <div id="auth-dashboard" class="profile-dashboard" hidden>
+                    <header class="profile-hero">
+                        <div class="profile-hero__avatar" id="profile-avatar"></div>
+                        <div class="profile-hero__copy">
+                            <p class="site-eyebrow">Explorador rosarino</p>
+                            <h2 id="profile-display-name">Tu nombre</h2>
+                            <p id="profile-display-email"></p>
+                            <p class="profile-member-since" id="profile-member-since"></p>
+                        </div>
+                        <button class="site-button site-button--small site-button--light profile-logout-btn" type="button" id="logout-user-btn">Cerrar sesión</button>
+                    </header>
+
+                    <div class="profile-banner" id="email-verify-banner" hidden>
+                        <p id="verify-banner-text">Verificá tu email para activar todas las funciones de tu cuenta.</p>
+                        <button type="button" class="site-button site-button--small" id="resend-verify-btn">Reenviar verificación</button>
+                    </div>
+
+                    <div class="profile-stats" aria-label="Resumen de actividad">
+                        <article class="profile-stat">
+                            <strong id="stat-bookings">0</strong>
+                            <span>Reservas</span>
+                        </article>
+                        <article class="profile-stat">
+                            <strong id="stat-reviews">0</strong>
+                            <span>Reseñas</span>
+                        </article>
+                        <article class="profile-stat">
+                            <strong id="stat-games">0</strong>
+                            <span>Puntajes</span>
+                        </article>
+                    </div>
+
+                    <div class="profile-tabs" role="tablist" aria-label="Secciones del perfil">
+                        <button type="button" class="profile-tabs__btn is-active" data-profile-tab="account" role="tab">Mi cuenta</button>
+                        <button type="button" class="profile-tabs__btn" data-profile-tab="bookings" role="tab">Mis reservas</button>
+                        <button type="button" class="profile-tabs__btn" data-profile-tab="reviews" role="tab">Mis reseñas</button>
+                    </div>
+
+                    <div id="profile-panel-account" class="profile-panel">
+                        <form class="booking-form profile-edit-form" id="profile-edit-form">
+                            <p class="site-eyebrow">Datos personales</p>
+                            <h3>Editar perfil</h3>
+                            <label>
+                                Nombre
+                                <input id="profile-name" type="text" autocomplete="name" required>
+                            </label>
+                            <label>
+                                WhatsApp
+                                <input id="profile-phone" type="tel" autocomplete="tel" placeholder="+54 9 341 ...">
+                            </label>
+                            <label>
+                                Ciudad
+                                <input id="profile-city" type="text" autocomplete="address-level2" placeholder="Rosario">
+                            </label>
+                            <button class="site-button site-button--small" type="submit">Guardar cambios</button>
+                            <p class="form-feedback" id="profile-edit-feedback" aria-live="polite"></p>
+                        </form>
+                        <aside class="profile-quick-links">
+                            <p class="site-eyebrow">Accesos rápidos</p>
+                            <a class="site-button site-button--small site-button--light" href="#agenda" data-view-link="agenda">Reservar una salida</a>
+                            <a class="site-button site-button--small site-button--light" href="#comunidad" data-view-link="comunidad">Dejar una reseña</a>
+                            <a class="site-button site-button--small site-button--light" href="juegos.html">Ir a los juegos</a>
+                        </aside>
+                    </div>
+
+                    <div id="profile-panel-bookings" class="profile-panel" hidden>
+                        <div class="profile-panel__head">
+                            <p class="site-eyebrow">Historial</p>
+                            <h3>Mis reservas</h3>
+                            <p>Las reservas que confirmaste estando logueado se sincronizan acá en tiempo real.</p>
+                        </div>
+                        <div class="profile-list" id="profile-bookings-list"></div>
+                    </div>
+
+                    <div id="profile-panel-reviews" class="profile-panel" hidden>
+                        <div class="profile-panel__head">
+                            <p class="site-eyebrow">Comunidad</p>
+                            <h3>Mis reseñas</h3>
+                            <p>Seguí el estado de moderación de tus opiniones.</p>
+                        </div>
+                        <div class="profile-list" id="profile-reviews-list"></div>
                     </div>
                 </div>
             </section>

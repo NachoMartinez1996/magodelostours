@@ -1,4 +1,4 @@
-const VERSION_CACHE = "1.8.00";
+const VERSION_CACHE = "1.9.00";
 const CACHE_SHELL = `rosario-shell-${VERSION_CACHE}`;
 const CACHE_RUNTIME = `rosario-runtime-${VERSION_CACHE}`;
 const HOME_SHELL = "./index.html";
@@ -13,6 +13,7 @@ const shellFiles = [
     "./style.css",
     "./script.js",
     "./site.js",
+    "./auth-system.js",
     "./admin.js",
     "./firebase-config.js",
     "./manifest.json",
@@ -40,6 +41,7 @@ function isUpdatableResource(request) {
         path.endsWith("/admin.html") ||
         path.endsWith("/script.js") ||
         path.endsWith("/site.js") ||
+        path.endsWith("/auth-system.js") ||
         path.endsWith("/admin.js") ||
         path.endsWith("/firebase-config.js") ||
         path.endsWith("/style.css") ||
@@ -61,6 +63,7 @@ function getTargetCache(request) {
         path.endsWith("/admin.html") ||
         path.endsWith("/script.js") ||
         path.endsWith("/site.js") ||
+        path.endsWith("/auth-system.js") ||
         path.endsWith("/admin.js") ||
         path.endsWith("/firebase-config.js") ||
         path.endsWith("/style.css") ||

@@ -263,7 +263,8 @@ function subscribeAdminLists() {
         subscribeAgenda(),
         subscribeReviews(),
         subscribeSuggestions(),
-        subscribeRegistrations()
+        subscribeRegistrations(),
+        subscribeUsers()
     ].filter(Boolean);
     state.subscribed = true;
 }
@@ -393,7 +394,7 @@ function subscribeRegistrations() {
                 <span>${escapeHtml(data.priceLabel || "Precio a confirmar")} · ${escapeHtml(data.source || "recorrido")}</span>
                 <span>${escapeHtml(paymentLabel(data.paymentMethod))}${data.paymentAlias ? ` · Alias: ${escapeHtml(data.paymentAlias)}` : ""}</span>
                 <span>Punto interno: ${escapeHtml(data.meeting || "a confirmar")}</span>
-                <em>${escapeHtml(data.status || "pending")}</em>
+                <em>${escapeHtml(data.status || "pending")}${data.uid ? " · con cuenta" : ""}</em>
             `);
             card.appendChild(actionButton("Confirmar", () => runAdminAction(
                 () => updateDoc(doc(state.db, "registrations", item.id), { status: "confirmed" }),
@@ -406,6 +407,33 @@ function subscribeRegistrations() {
             container.appendChild(card);
         });
     }, error => handleAdminSnapshotError("admin-registrations-list", "No se pudieron leer las inscripciones.", error));
+}
+
+function subscribeUsers() {
+    const { collection, onSnapshot, orderBy, query } = state.firestore;
+    const usersQuery = query(collection(state.db, "users"), orderBy("createdAt", "desc"));
+
+    return onSnapshot(usersQuery, snapshot => {
+        const container = document.getElementById("admin-users-list");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (snapshot.empty) {
+            renderEmpty(container, "Todavía no hay usuarios registrados.");
+            return;
+        }
+
+        snapshot.docs.forEach(item => {
+            const data = item.data();
+            const card = adminCard(`
+                <strong>${escapeHtml(data.name || "Sin nombre")}</strong>
+                <span>${escapeHtml(data.email || "")}${data.phone ? ` · ${escapeHtml(data.phone)}` : ""}</span>
+                <span>${data.city ? escapeHtml(data.city) : "Ciudad no indicada"}</span>
+                <em>${data.lastLoginAt ? "Activo recientemente" : "Nuevo"}</em>
+            `);
+            container.appendChild(card);
+        });
+    }, error => handleAdminSnapshotError("admin-users-list", "No se pudieron leer los usuarios.", error));
 }
 
 async function loadPaymentConfig() {

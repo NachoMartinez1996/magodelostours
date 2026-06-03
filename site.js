@@ -1,4 +1,5 @@
 import { fallbackAgenda, fallbackReviews, firebaseConfig } from "./firebase-config.js";
+import { initAuthSystem, saveRegistrationToCloud } from "./auth-system.js";
 
 const WHATSAPP_PHONE = "543413504208";
 const FIREBASE_VERSION = "12.14.0";
@@ -19,6 +20,8 @@ const state = {
     user: null,
     firebaseReady: false
 };
+
+let authUI = null;
 
 // Map of tour title -> { description, duration }
 let toursMap = {};
@@ -185,89 +188,16 @@ function initForms() {
     suggestionForm?.addEventListener("submit", handleSuggestionSubmit);
     reviewForm?.addEventListener("submit", handleReviewSubmit);
 
-    // Auth controls: dynamic register/login UX
-    const registerBtn = document.getElementById("register-user-btn");
-    const loginBtn = document.getElementById("login-user-btn");
-    const logoutBtn = document.getElementById("logout-user-btn");
-    const authNameLabel = document.querySelector('.auth-name-field');
-    const authNameInput = document.getElementById('auth-name');
-    const authEmailInput = document.getElementById('auth-email');
-    const authPasswordInput = document.getElementById('auth-password');
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-            state.authFns?.signOut(state.auth);
-        });
-    }
-
-    // Hide name field by default (register flows will show it)
-    if (authNameLabel) authNameLabel.hidden = true;
-
-    let registerMode = false;
-    const enterRegisterMode = () => {
-        if (authNameLabel) authNameLabel.hidden = false;
-        registerMode = true;
-        if (registerBtn) registerBtn.textContent = 'Crear cuenta';
-        if (authNameInput) authNameInput.focus();
-    };
-    const exitRegisterMode = () => {
-        if (authNameLabel) authNameLabel.hidden = true;
-        registerMode = false;
-        if (registerBtn) registerBtn.textContent = 'Registrarme';
-    };
-
-    if (registerBtn) {
-        registerBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (!registerMode) {
-                enterRegisterMode();
-                return;
-            }
-            // perform registration
-            registerBtn.disabled = true;
-            if (loginBtn) loginBtn.disabled = true;
-            try {
-                await handleRegister();
-                // on success, ensure register mode is reset
-                exitRegisterMode();
-            } finally {
-                registerBtn.disabled = false;
-                if (loginBtn) loginBtn.disabled = false;
-            }
-        });
-    }
-
-    if (loginBtn) {
-        loginBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            exitRegisterMode();
-            loginBtn.disabled = true;
-            if (registerBtn) registerBtn.disabled = true;
-            try {
-                await handleLogin();
-            } finally {
-                loginBtn.disabled = false;
-                if (registerBtn) registerBtn.disabled = false;
-            }
-        });
-    }
-
-    // allow Enter on password to trigger login
-    if (authPasswordInput && loginBtn) {
-        authPasswordInput.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') {
-                ev.preventDefault();
-                loginBtn.click();
-            }
-        });
-    }
-
-    // Autofocus email for faster login/registro
-    if (authEmailInput) {
-        try { authEmailInput.focus(); } catch (e) {}
-    }
-
-    initPasswordToggles();
+    authUI = initAuthSystem({
+        getState: () => state,
+        getValue,
+        setText,
+        normalizeEmail,
+        getFirebaseMessage,
+        escapeHtml,
+        initPasswordToggles,
+        onProfileLoaded: autofillFromProfile
+    });
 
     // Populate duration select from PRICE_BY_DURATION
     const durationSelect = document.getElementById("booking-duration");
@@ -573,7 +503,8 @@ async function initFirebase() {
 
         authMod.onAuthStateChanged(state.auth, user => {
             state.user = user;
-            updateAuthUI(user);
+            authUI?.updateAuthUI(user);
+            autofillFromProfile(user);
         });
 
         subscribeAgenda();
@@ -583,7 +514,8 @@ async function initFirebase() {
         console.warn("Firebase no está disponible. La página conserva las funciones públicas.", error);
         renderAgenda(fallbackAgenda);
         renderReviews(fallbackReviews);
-        setText("auth-status", "Firebase no está disponible ahora. Podés seguir consultando por WhatsApp.");
+        const authStatus = document.getElementById("auth-status");
+        if (authStatus) authStatus.textContent = "Firebase no está disponible ahora. Podés seguir consultando por WhatsApp.";
     }
 }
 
@@ -719,6 +651,7 @@ async function confirmReservationByEmail() {
     if (!pendingBooking) return;
     try {
         await saveReservationLocal(pendingBooking);
+        await saveRegistrationToCloud(state, pendingBooking);
     } catch (e) {
         console.warn('No se pudo guardar localmente antes de enviar por e-mail', e);
     }
@@ -756,6 +689,7 @@ async function confirmReservationByWhatsApp() {
     if (!pendingBooking) return;
     try {
         await saveReservationLocal(pendingBooking);
+        await saveRegistrationToCloud(state, pendingBooking);
     } catch (e) {
         console.warn('No se pudo guardar localmente antes de enviar por WhatsApp', e);
     }
@@ -1211,104 +1145,23 @@ async function handleReviewSubmit(event) {
     }
 }
 
-async function handleRegister() {
-    const feedback = document.getElementById("auth-status");
-
-    if (!state.firebaseReady) {
-        feedback.textContent = "Firebase no está disponible ahora.";
-        return;
-    }
-
-    const name = getValue("auth-name");
-    const email = normalizeEmail(getValue("auth-email"));
-    const password = getValue("auth-password");
-
-    if (!name || !email || !password) {
-        feedback.textContent = "Completá nombre, email y contraseña.";
-        return;
-    }
-
-    try {
-        const credential = await state.authFns.createUserWithEmailAndPassword(state.auth, email, password);
-        await state.authFns.updateProfile(credential.user, { displayName: name });
-        await state.firestore.setDoc(state.firestore.doc(state.db, "users", credential.user.uid), {
-            name,
-            email,
-            createdAt: state.firestore.serverTimestamp()
-        });
-        feedback.textContent = "Cuenta creada. Ya podés dejar reseñas.";
-        // Hide name field after successful registration (UX: back to login compact state)
-        const nameLabel = document.querySelector('.auth-name-field');
-        if (nameLabel) nameLabel.hidden = true;
-        const registerBtn = document.getElementById('register-user-btn');
-        if (registerBtn) registerBtn.textContent = 'Registrarme';
-    } catch (error) {
-        feedback.textContent = getFirebaseMessage(error);
-    }
-}
-
-async function handleLogin() {
-    const feedback = document.getElementById("auth-status");
-
-    if (!state.firebaseReady) {
-        feedback.textContent = "Firebase no está disponible ahora.";
-        return;
-    }
-
-    try {
-        await state.authFns.signInWithEmailAndPassword(state.auth, normalizeEmail(getValue("auth-email")), getValue("auth-password"));
-        feedback.textContent = "Sesión iniciada.";
-    } catch (error) {
-        feedback.textContent = getFirebaseMessage(error);
-    }
-}
-
-function updateAuthUI(user) {
-    const status = document.getElementById("auth-status");
-    const logout = document.getElementById("logout-user-btn");
-    const login = document.getElementById("login-user-btn");
-    const register = document.getElementById("register-user-btn");
-
-    if (!status) return;
-
+function autofillFromProfile(user, profile) {
     const setInputValue = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.value = val ?? "";
     };
 
-    if (user) {
-        status.textContent = `Sesión iniciada como ${user.displayName || user.email}.`;
-        logout.hidden = false;
-        login.hidden = true;
-        register.hidden = true;
-
-        // Autocompletar campos de reserva y reseña cuando el usuario está logueado
-        setInputValue('booking-name', user.displayName || '');
-        setInputValue('booking-email', user.email || '');
-        setInputValue('booking-phone', user.phoneNumber || '');
-        setInputValue('auth-name', user.displayName || '');
-        setInputValue('review-name', user.displayName || user.email || '');
-        // Persist minimal auth info for other pages (games) to detect logged user
-        try {
-            localStorage.setItem('authUser', JSON.stringify({
-                uid: user.uid,
-                email: user.email || null,
-                displayName: user.displayName || null,
-                phoneNumber: user.phoneNumber || null
-            }));
-        } catch (e) {
-            console.warn('No se pudo persistir authUser en localStorage', e);
-        }
-    } else {
-        status.textContent = "Creá una cuenta para dejar reseñas asociadas a tu usuario.";
-        logout.hidden = true;
-        login.hidden = false;
-        register.hidden = false;
-
-        // Limpiar campos autocompletados para evitar datos obsoletos
-        setInputValue('review-name', '');
-        try { localStorage.removeItem('authUser'); } catch (e) {}
+    if (!user) {
+        setInputValue("review-name", "");
+        return;
     }
+
+    const name = profile?.name || user.displayName || "";
+    const phone = profile?.phone || user.phoneNumber || "";
+    setInputValue("booking-name", name);
+    setInputValue("booking-email", user.email || "");
+    setInputValue("booking-phone", phone);
+    setInputValue("review-name", name || user.email || "");
 }
 
 function subscribeAgenda() {
@@ -1545,5 +1398,7 @@ function getFirebaseMessage(error) {
     if (code.includes("auth/network-request-failed")) return "No hay conexión con Firebase.";
     if (code.includes("auth/weak-password")) return "La contraseña debe tener al menos 6 caracteres.";
     if (code.includes("auth/operation-not-allowed")) return "Activá Email/Password en Firebase Authentication.";
+    if (code.includes("auth/popup-blocked")) return "El navegador bloqueó la ventana de Google. Permití ventanas emergentes e intentá de nuevo.";
+    if (code.includes("auth/account-exists-with-different-credential")) return "Ese email ya está registrado con otro método. Probá ingresar con email y contraseña.";
     return "No se pudo completar la operación.";
 }
